@@ -1,0 +1,370 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum GlobalRole {
+  USER
+  SUPER_ADMIN
+}
+
+enum OrganizationRole {
+  ORGANIZATION_OWNER
+  EVENT_ADMIN
+  FINANCE_ADMIN
+  RESULTS_VIEWER
+}
+
+enum RecordStatus {
+  ACTIVE
+  DISABLED
+  ARCHIVED
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING
+  ARCHIVED
+}
+
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+enum EventStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  PAUSED
+  ENDED
+  CANCELLED
+  ARCHIVED
+}
+
+enum ResultsVisibility {
+  EXACT_TOTALS
+  PERCENTAGES
+  RANKING_ONLY
+  HIDDEN_UNTIL_END
+  ADMIN_ONLY
+  MANUAL_RELEASE
+}
+
+enum VoteChannel {
+  WEB
+  USSD
+  SMS
+  MOBILE_APP
+  API
+}
+
+enum PaymentProviderName {
+  PAYSTACK
+  HUBTEL
+  FLUTTERWAVE
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  CANCELLED
+  EXPIRED
+  REFUNDED
+}
+
+enum VoteStatus {
+  PENDING
+  CREDITED
+  REVERSED
+  FAILED
+}
+
+enum AdjustmentType {
+  REVERSAL
+  CORRECTION
+}
+
+model User {
+  id           String                   @id @default(cuid())
+  email        String                   @unique
+  passwordHash String
+  name         String
+  globalRole   GlobalRole               @default(USER)
+  twoFactorEnabled Boolean              @default(false)
+  memberships OrganizationMembership[]
+  auditLogs    AuditLog[]
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+}
+
+model Organization {
+  id             String                   @id @default(cuid())
+  name           String
+  slug           String                   @unique
+  description    String?
+  logoUrl        String?
+  email          String
+  phone          String?
+  website        String?
+  country        String                   @default("GH")
+  currency       String                   @default("GHS")
+  primaryColor   String?
+  secondaryColor String?
+  status         OrganizationStatus       @default(PENDING)
+  memberships    OrganizationMembership[]
+  events         Event[]
+  candidates     Candidate[]
+  voteOrders     VoteOrder[]
+  payments       Payment[]
+  voteTransactions VoteTransaction[]
+  voteAdjustments VoteAdjustment[]
+  auditLogs      AuditLog[]
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+}
+
+model OrganizationMembership {
+  id             String           @id @default(cuid())
+  organizationId String
+  userId         String
+  role           OrganizationRole
+  status         MembershipStatus @default(INVITED)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@unique([organizationId, userId])
+  @@index([userId, status])
+}
+
+model Event {
+  id                         String            @id @default(cuid())
+  organizationId             String
+  name                       String
+  slug                       String
+  description                String?
+  bannerUrl                  String?
+  startAt                    DateTime
+  endAt                      DateTime
+  timezone                   String            @default("Africa/Accra")
+  currency                   String            @default("GHS")
+  defaultVotePrice           Int
+  minimumVotes               Int               @default(1)
+  maximumVotesPerTransaction Int
+  status                     EventStatus       @default(DRAFT)
+  resultsVisibility          ResultsVisibility @default(ADMIN_ONLY)
+  resultsReleasedAt          DateTime?
+  webVotingEnabled           Boolean           @default(true)
+  ussdVotingEnabled          Boolean           @default(false)
+  organization               Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  categories                 Category[]
+  candidates                 Candidate[]
+  voteOrders                 VoteOrder[]
+  voteTransactions           VoteTransaction[]
+  createdAt                  DateTime           @default(now())
+  updatedAt                  DateTime           @updatedAt
+
+  @@unique([organizationId, slug])
+  @@index([organizationId, status])
+  @@index([status, startAt, endAt])
+}
+
+model Category {
+  id                String       @id @default(cuid())
+  eventId           String
+  name              String
+  slug              String
+  description       String?
+  imageUrl          String?
+  votePriceOverride Int?
+  displayOrder      Int          @default(0)
+  status            RecordStatus @default(ACTIVE)
+  event             Event        @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  candidates        Candidate[]
+  voteOrders        VoteOrder[]
+  voteTransactions  VoteTransaction[]
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@unique([eventId, slug])
+  @@index([eventId, status, displayOrder])
+}
+
+model Candidate {
+  id                 String       @id @default(cuid())
+  organizationId     String
+  eventId            String
+  categoryId         String
+  name               String
+  slug               String
+  candidateCode      String
+  photoUrl           String?
+  biography          String?
+  slogan             String?
+  socialLinks        Json?
+  displayOrder       Int          @default(0)
+  status             RecordStatus @default(ACTIVE)
+  cachedVoteCount    Int          @default(0)
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  event              Event        @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  category           Category     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  voteOrders         VoteOrder[]
+  voteTransactions   VoteTransaction[]
+  voteAdjustments    VoteAdjustment[]
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@unique([eventId, candidateCode])
+  @@unique([eventId, slug])
+  @@index([organizationId, status])
+  @@index([categoryId, status, displayOrder])
+  @@index([candidateCode])
+}
+
+model VoteOrder {
+  id                 String              @id @default(cuid())
+  organizationId     String
+  eventId            String
+  categoryId         String
+  candidateId        String
+  quantity           Int
+  unitPrice          Int
+  amount             Int
+  currency           String
+  voterPhone         String
+  voterEmail         String?
+  channel            VoteChannel
+  paymentProvider    PaymentProviderName
+  paymentReference   String              @unique
+  paymentStatus      PaymentStatus       @default(PENDING)
+  voteStatus         VoteStatus          @default(PENDING)
+  providerCheckoutUrl String?
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  event              Event               @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  category           Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  candidate          Candidate           @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  payment            Payment?
+  voteTransaction    VoteTransaction?
+  createdAt          DateTime             @default(now())
+  paidAt             DateTime?
+  processedAt        DateTime?
+  expiresAt          DateTime?
+  updatedAt          DateTime             @updatedAt
+
+  @@index([organizationId, createdAt])
+  @@index([eventId, paymentStatus, createdAt])
+  @@index([candidateId, voteStatus])
+}
+
+model Payment {
+  id                    String              @id @default(cuid())
+  organizationId        String
+  orderId               String              @unique
+  provider              PaymentProviderName
+  providerTransactionId String?             @unique
+  reference             String              @unique
+  amount                Int
+  currency              String
+  status                PaymentStatus
+  paymentMethod         String?
+  providerPaidAt        DateTime?
+  organization          Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  order                 VoteOrder           @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  voteTransaction       VoteTransaction?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  @@index([organizationId, status, createdAt])
+}
+
+model VoteTransaction {
+  id               String       @id @default(cuid())
+  organizationId   String
+  eventId          String
+  categoryId       String
+  candidateId      String
+  orderId          String       @unique
+  paymentId        String       @unique
+  quantity         Int
+  unitPrice        Int
+  amount           Int
+  currency         String
+  channel          VoteChannel
+  paymentReference String       @unique
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  event            Event        @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  category         Category     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  candidate        Candidate    @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  order            VoteOrder    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  payment          Payment      @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  adjustments      VoteAdjustment[]
+  createdAt        DateTime     @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([eventId, createdAt])
+  @@index([candidateId, createdAt])
+}
+
+model VoteAdjustment {
+  id                String         @id @default(cuid())
+  organizationId    String
+  candidateId       String
+  voteTransactionId String
+  quantity           Int
+  type               AdjustmentType
+  reason             String
+  reference          String         @unique
+  createdBy          String
+  organization       Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  candidate          Candidate      @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  voteTransaction    VoteTransaction @relation(fields: [voteTransactionId], references: [id], onDelete: Restrict)
+  createdAt          DateTime       @default(now())
+
+  @@index([candidateId, createdAt])
+}
+
+model AuditLog {
+  id             String        @id @default(cuid())
+  organizationId String?
+  userId         String?
+  action         String
+  resourceType   String
+  resourceId     String
+  oldValue       Json?
+  newValue       Json?
+  ipAddress      String?
+  userAgent      String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([resourceType, resourceId])
+}
+
+model WebhookLog {
+  id               String              @id @default(cuid())
+  provider         PaymentProviderName
+  eventType        String
+  reference        String?
+  signatureValid   Boolean
+  processed        Boolean             @default(false)
+  processingResult String?
+  payloadDigest    String?
+  receivedAt       DateTime            @default(now())
+  processedAt      DateTime?
+
+  @@index([provider, reference])
+  @@index([processed, receivedAt])
+}

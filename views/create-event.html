@@ -1,0 +1,437 @@
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+      name="viewport"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&amp;family=Inter:wght@400;500;600&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              secondary: '#525f71',
+              'on-secondary': '#ffffff',
+              'surface-dim': '#d9dadb',
+              'outline-variant': '#dac2ae',
+              tertiary: '#bf0025',
+              'secondary-container': '#d3e1f6',
+              'primary-container': '#ff9f1c',
+              'on-primary-fixed': '#2c1700',
+              'on-secondary-container': '#566475',
+              'on-tertiary-fixed-variant': '#93001a',
+              'inverse-primary': '#ffb86b',
+              'surface-container-lowest': '#ffffff',
+              'on-primary': '#ffffff',
+              'primary-fixed': '#ffdcbc',
+              'tertiary-fixed': '#ffdad8',
+              'surface-container': '#edeeef',
+              'surface-bright': '#f8f9fa',
+              'on-tertiary-fixed': '#410006',
+              'inverse-surface': '#2e3132',
+              'surface-tint': '#895100',
+              'tertiary-container': '#ff9996',
+              'on-error': '#ffffff',
+              'error-container': '#ffdad6',
+              outline: '#877462',
+              'primary-fixed-dim': '#ffb86b',
+              'on-tertiary': '#ffffff',
+              'on-error-container': '#93000a',
+              'on-tertiary-container': '#92001a',
+              'surface-container-high': '#e7e8e9',
+              'on-secondary-fixed-variant': '#3a4859',
+              'surface-container-highest': '#e1e3e4',
+              'secondary-fixed-dim': '#bac8dc',
+              'on-secondary-fixed': '#0f1c2c',
+              'on-surface': '#191c1d',
+              primary: '#895100',
+              'tertiary-fixed-dim': '#ffb3b0',
+              'inverse-on-surface': '#f0f1f2',
+              surface: '#f8f9fa',
+              error: '#ba1a1a',
+              'surface-variant': '#e1e3e4',
+              background: '#f8f9fa',
+              'secondary-fixed': '#d6e4f9',
+              'on-primary-container': '#683c00',
+              'surface-container-low': '#f3f4f5',
+              'on-background': '#191c1d',
+              'on-primary-fixed-variant': '#683d00',
+              'on-surface-variant': '#544434',
+            },
+            borderRadius: {
+              DEFAULT: '0.25rem',
+              lg: '0.5rem',
+              xl: '0.75rem',
+              full: '9999px',
+            },
+            spacing: {
+              'margin-mobile': '16px',
+              'margin-desktop': '40px',
+              gutter: '24px',
+              base: '8px',
+              'container-max': '1280px',
+            },
+            fontFamily: {
+              'headline-lg': ['Outfit'],
+              'headline-lg-mobile': ['Outfit'],
+              'body-md': ['Inter'],
+              'headline-md': ['Outfit'],
+              'display-lg': ['Outfit'],
+              'label-md': ['Inter'],
+              'label-sm': ['Inter'],
+              'body-lg': ['Inter'],
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      @layer base {
+        body {
+          overscroll-behavior: none;
+        }
+        .pb-safe {
+          padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        .pt-safe {
+          padding-top: env(safe-area-inset-top, 0px);
+        }
+      }
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+    </style>
+  </head>
+  <body class="bg-background font-body-md text-body-md text-on-background">
+    <header
+      class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe"
+    >
+      <div class="h-16 px-margin-mobile flex items-center justify-between">
+        <div class="flex items-center gap-base">
+          <button
+            class="w-10 h-10 flex items-center justify-center -ml-2 text-on-surface-variant"
+          >
+            <span class="material-symbols-outlined">menu</span></button
+          ><img
+            alt="TomaMe logo"
+            class="h-8 w-auto object-contain"
+            src="https://lh3.googleusercontent.com/aida/AP1WRLuzwcfgKtw7DLVG-M30anCgAK_BwOZyOQ1MT7rk2lNjGKOE2lxmW6bnjJhauoyZ3MFs2p7-RWdhJMjh00PrIRSj2N9MtDwdZtMXxdOw-N0IbJJs3Tvn0vsA_cM_X-9D0gS1TUGfxRSyTcV16_eEs_x6PV233USC08WwTv0QHyb3oFvvebbbqA3V6tCnq7eUtzriSB2bR7SepseSaUgP_klq92UsjGzWccz4aRN3ytt_VAZe4EOjLA6i7r0"
+          /><span
+            class="hidden font-headline-md text-headline-md text-primary ml-2"
+            >Events</span
+          >
+        </div>
+        <img
+          alt="Profile"
+          class="w-8 h-8 rounded-full object-cover"
+          src="https://lh3.googleusercontent.com/aida/AP1WRLtMuwxmZXGpZYBtw33nH1iJoRy7u4VWMRfBSI1lUwwwDqVI0PSLNDoB_fs4uH-GQqs93trpa9TAqtFSrPQsN_P0H6SaexTrgHKZ8L_kf8ZfYl_4DYUA8p-F7L0KNXkbj7KFh4ZCGNNhRyp1TbPTDDC5JD1NtYc63TbUeeOlTOt_VbpSZaKZYOwvXMzTw-hhI_wKR5LvQaNkMxoc5kfWTo3Y7xOm59i-2a6Z6nbtn8bTMNXJ0OwauFZdwT8"
+        />
+      </div>
+    </header>
+    <main class="relative w-full pt-16 bg-background min-h-screen">
+      <div class="flex flex-col w-full h-full relative bg-background">
+        <!-- Progress Indicator -->
+        <div
+          class="px-margin-mobile pt-6 pb-4 bg-surface-container-lowest sticky top-0 z-10"
+        >
+          <div class="flex justify-between items-center mb-2">
+            <span
+              class="text-label-sm font-label-sm text-on-surface-variant uppercase tracking-wider"
+              >Step 1 of 10</span
+            >
+            <span class="text-label-md font-label-md text-primary"
+              >Event Information</span
+            >
+          </div>
+          <div
+            class="w-full bg-surface-variant h-1.5 rounded-full overflow-hidden"
+          >
+            <div
+              class="bg-primary h-full w-[10%] rounded-full transition-all duration-500 ease-in-out"
+            ></div>
+          </div>
+        </div>
+        <!-- Main Form Content -->
+        <div
+          class="flex-1 px-margin-mobile py-6 flex flex-col gap-6 overflow-y-auto pb-32"
+        >
+          <!-- Banner Upload Area -->
+          <div class="flex flex-col gap-2">
+            <label class="text-label-md font-label-md text-on-surface"
+              >Event Banner</label
+            >
+            <div
+              class="relative w-full aspect-video rounded-xl bg-surface-container border-2 border-dashed border-outline-variant flex flex-col items-center justify-center overflow-hidden group cursor-pointer transition-colors hover:bg-surface-container-high"
+              id="banner-upload-area"
+            >
+              <input
+                accept="image/*"
+                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                id="banner-upload"
+                type="file"
+              />
+              <div
+                class="flex flex-col items-center justify-center gap-3 p-4 text-center pointer-events-none"
+                id="upload-prompt"
+              >
+                <div
+                  class="w-12 h-12 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container"
+                >
+                  <span class="material-symbols-outlined text-2xl"
+                    >add_photo_alternate</span
+                  >
+                </div>
+                <div>
+                  <p class="text-body-md font-body-md text-on-surface">
+                    Tap to upload banner
+                  </p>
+                  <p
+                    class="text-label-sm font-label-sm text-on-surface-variant mt-1"
+                  >
+                    Recommended: 1920x1080 (16:9), max 5MB
+                  </p>
+                </div>
+              </div>
+              <div
+                class="absolute inset-0 hidden w-full h-full bg-black/50 backdrop-blur-sm z-20 flex items-center justify-center"
+                id="image-preview-container"
+              >
+                <img
+                  alt="Preview"
+                  class="w-full h-full object-cover"
+                  id="image-preview"
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzf6ubDk7-VDcjlpT5FaUN5ZJcOmftTAHjq_bvr5bLHcm_ph4Q4t4dZgkCvcBWYcXAyBQvRNAzc86Ehn10nnGywIQnx3FQSPJ_cSGrXz-FT-Iuc3orPstc7lUVTKTMhx55vvq3ZbOIcF4TAyWa4iLW_16C83iFD9UJ02vsmtbLPfiqORt743TUY90ApHFRt5LLINysZk98YZkDrlvxG1nmV0K1ilAh9k6kA6VLxRuW3-354Dj40DVx"
+                />
+                <button
+                  class="absolute top-2 right-2 w-8 h-8 rounded-full bg-surface-container-lowest/80 text-on-surface flex items-center justify-center backdrop-blur-md shadow-sm z-30 pointer-events-auto"
+                  id="remove-image"
+                  type="button"
+                >
+                  <span class="material-symbols-outlined text-sm">close</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- Event Name Field -->
+          <div class="flex flex-col gap-2">
+            <label
+              class="text-label-md font-label-md text-on-surface"
+              for="event-name"
+              >Event Name</label
+            >
+            <div class="relative group">
+              <input
+                class="w-full bg-surface-container-lowest text-body-md font-body-md text-on-surface placeholder:text-on-surface-variant/50 px-4 py-3.5 rounded-lg border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all duration-200"
+                id="event-name"
+                placeholder="E.g., Ghana Music Awards 2024"
+                type="text"
+              />
+              <div
+                class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none opacity-0 group-focus-within:opacity-100 transition-opacity"
+              >
+                <span class="material-symbols-outlined text-primary text-xl"
+                  >edit</span
+                >
+              </div>
+            </div>
+          </div>
+          <!-- Event Description Field -->
+          <div class="flex flex-col gap-2">
+            <label
+              class="text-label-md font-label-md text-on-surface"
+              for="event-description"
+              >Event Description</label
+            >
+            <div class="relative group">
+              <textarea
+                class="w-full bg-surface-container-lowest text-body-md font-body-md text-on-surface placeholder:text-on-surface-variant/50 px-4 py-3.5 rounded-lg border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all duration-200 resize-none"
+                id="event-description"
+                placeholder="Describe the purpose, theme, and key highlights of your event..."
+                rows="5"
+              ></textarea>
+              <div
+                class="absolute bottom-3 right-3 text-label-sm font-label-sm text-on-surface-variant/70 bg-surface-container-lowest px-1"
+              >
+                <span id="char-count">0</span>/500
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Fixed Bottom Action Bar -->
+        <div
+          class="fixed bottom-16 left-0 w-full bg-surface-container-lowest border-t border-outline-variant/30 p-margin-mobile z-40 pb-safe pb-8 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]"
+        >
+          <button
+            class="w-full bg-primary text-on-primary text-label-md font-label-md py-4 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-transform active:scale-[0.98] relative overflow-hidden group"
+            id="next-btn"
+          >
+            <span class="relative z-10">Continue to Settings</span>
+            <span class="material-symbols-outlined relative z-10 text-sm"
+              >arrow_forward</span
+            >
+            <div
+              class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"
+            ></div>
+          </button>
+        </div>
+      </div>
+      <script>
+        document.addEventListener('DOMContentLoaded', () => {
+          // Character count for description
+          const descInput = document.getElementById('event-description');
+          const charCount = document.getElementById('char-count');
+          const maxLength = 500;
+
+          descInput.addEventListener('input', (e) => {
+            const length = e.target.value.length;
+            if (length > maxLength) {
+              e.target.value = e.target.value.substring(0, maxLength);
+              charCount.textContent = maxLength;
+            } else {
+              charCount.textContent = length;
+            }
+          });
+
+          // Simple Image Preview Logic
+          const fileInput = document.getElementById('banner-upload');
+          const previewContainer = document.getElementById(
+            'image-preview-container',
+          );
+          const previewImage = document.getElementById('image-preview');
+          const removeBtn = document.getElementById('remove-image');
+          const uploadPrompt = document.getElementById('upload-prompt');
+
+          fileInput.addEventListener('change', function (e) {
+            const file = this.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = function (e) {
+                previewImage.src = e.target.result;
+                previewContainer.classList.remove('hidden');
+                uploadPrompt.classList.add('opacity-0');
+                fileInput.classList.add('hidden'); // Hide input so close button works reliably
+              };
+              reader.readAsDataURL(file);
+            }
+          });
+
+          removeBtn.addEventListener('click', function (e) {
+            e.stopPropagation(); // Prevent triggering upload again
+            fileInput.value = '';
+            previewContainer.classList.add('hidden');
+            uploadPrompt.classList.remove('opacity-0');
+            previewImage.src = '#';
+            fileInput.classList.remove('hidden');
+          });
+
+          // Next Button Interaction
+          const nextBtn = document.getElementById('next-btn');
+          nextBtn.addEventListener('click', (e) => {
+            const btn = e.currentTarget;
+            const originalText = btn.innerHTML;
+
+            // Basic validation check
+            const name = document.getElementById('event-name').value;
+            if (!name) {
+              document.getElementById('event-name').focus();
+              document
+                .getElementById('event-name')
+                .classList.add(
+                  'border-error',
+                  'focus:ring-error',
+                  'focus:border-error',
+                );
+              setTimeout(() => {
+                document
+                  .getElementById('event-name')
+                  .classList.remove(
+                    'border-error',
+                    'focus:ring-error',
+                    'focus:border-error',
+                  );
+              }, 1500);
+              return;
+            }
+
+            btn.innerHTML = `<span class="material-symbols-outlined animate-spin">progress_activity</span> <span class="ml-2">Saving...</span>`;
+            btn.classList.add('opacity-90');
+
+            // Simulate network request
+            setTimeout(() => {
+              btn.innerHTML = `<span class="material-symbols-outlined">check_circle</span> <span class="ml-2">Saved</span>`;
+              btn.classList.replace('bg-primary', 'bg-tertiary-container');
+              btn.classList.replace(
+                'text-on-primary',
+                'text-on-tertiary-container',
+              );
+
+              // Reset after brief success state
+              setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.classList.replace('bg-tertiary-container', 'bg-primary');
+                btn.classList.replace(
+                  'text-on-tertiary-container',
+                  'text-on-primary',
+                );
+                btn.classList.remove('opacity-90');
+              }, 1000);
+            }, 800);
+          });
+        });
+      </script>
+    </main>
+    <nav
+      class="fixed bottom-0 w-full z-50 pb-safe bg-surface/80 backdrop-blur-xl shadow-[0_-1px_8px_rgba(0,0,0,0.04)]"
+      data-active-classes="text-primary font-bold"
+    >
+      <div class="flex justify-between items-center h-16 px-base">
+        <a
+          class="flex flex-col items-center justify-center flex-1 gap-1 text-on-surface-variant"
+          data-path="overview"
+          href="#"
+          ><span class="material-symbols-outlined">dashboard</span
+          ><span class="text-label-sm font-label-sm">Overview</span></a
+        ><a
+          aria-current="page"
+          class="flex flex-col items-center justify-center flex-1 gap-1 text-primary font-bold"
+          data-path="events"
+          href="#"
+          ><span class="material-symbols-outlined">event</span
+          ><span class="text-label-sm font-label-sm">Events</span></a
+        ><a
+          class="flex flex-col items-center justify-center flex-1 gap-1 text-on-surface-variant"
+          data-path="categories"
+          href="#"
+          ><span class="material-symbols-outlined">account_tree</span
+          ><span class="text-label-sm font-label-sm">Categories</span></a
+        ><a
+          class="flex flex-col items-center justify-center flex-1 gap-1 text-on-surface-variant"
+          data-path="candidates"
+          href="#"
+          ><span class="material-symbols-outlined">groups</span
+          ><span class="text-label-sm font-label-sm">Candidates</span></a
+        ><a
+          class="flex flex-col items-center justify-center flex-1 gap-1 text-on-surface-variant"
+          data-path="transactions"
+          href="#"
+          ><span class="material-symbols-outlined">receipt_long</span
+          ><span class="text-label-sm font-label-sm">Payments</span></a
+        >
+      </div>
+    </nav>
+  </body>
+</html>
