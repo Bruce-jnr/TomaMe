@@ -1,5 +1,8 @@
-import { EventStatus, OrganizationRole, PaymentStatus, RecordStatus } from '@prisma/client';
-import { Router } from 'express';
+import { EventStatus, OrganizationRole, PaymentProviderName, PaymentStatus, Prisma, RecordStatus, VoteChannel } from '@prisma/client';
+import express, { Router } from 'express';
+import { randomUUID } from 'node:crypto';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { z } from 'zod';
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../errors/app-error.js';
@@ -10,7 +13,36 @@ organizerRouter.use(requireAuth);
 
 const managerRoles = [OrganizationRole.ORGANIZATION_OWNER, OrganizationRole.EVENT_ADMIN];
 const categorySchema = z.object({ eventId: z.string().cuid(), name: z.string().trim().min(2).max(100), description: z.string().trim().max(500).optional(), votePriceOverride: z.number().int().positive().nullable().optional() });
-const candidateSchema = z.object({ eventId: z.string().cuid(), categoryId: z.string().cuid(), name: z.string().trim().min(2).max(100), candidateCode: z.string().trim().toUpperCase().regex(/^[A-Z0-9-]{2,20}$/), biography: z.string().trim().max(2000).optional(), slogan: z.string().trim().max(200).optional() });
+const candidateSchema = z.object({ eventId: z.string().cuid(), categoryId: z.string().cuid(), name: z.string().trim().min(2).max(100), candidateCode: z.string().trim().toUpperCase().regex(/^[A-Z0-9-]{2,20}$/), biography: z.string().trim().max(2000).optional(), slogan: z.string().trim().max(200).optional(), photoUrl: z.string().trim().max(300).optional() });
+const eventSchema = z.object({
+  name: z.string().trim().min(3).max(100),
+  description: z.string().trim().max(500).optional(),
+  startAt: z.coerce.date(),
+  endAt: z.coerce.date(),
+  timezone: z.string().trim().min(2).max(60),
+  currency: z.string().trim().length(3).transform((value) => value.toUpperCase()),
+  defaultVotePrice: z.number().int().positive(),
+  minimumVotes: z.number().int().positive(),
+  maximumVotesPerTransaction: z.number().int().positive(),
+  webVotingEnabled: z.boolean(),
+  ussdVotingEnabled: z.boolean(),
+  resultsVisibility: z.enum(['EXACT_TOTALS', 'PERCENTAGES', 'RANKING_ONLY', 'HIDDEN_UNTIL_END', 'ADMIN_ONLY', 'MANUAL_RELEASE']),
+  bannerUrl: z.string().trim().max(300).optional(),
+}).superRefine((value, context) => {
+  if (value.endAt <= value.startAt) context.addIssue({ code: 'custom', path: ['endAt'], message: 'End time must be after start time.' });
+  if (value.endAt <= new Date()) context.addIssue({ code: 'custom', path: ['endAt'], message: 'Event must end in the future.' });
+  if (value.maximumVotesPerTransaction < value.minimumVotes) context.addIssue({ code: 'custom', path: ['maximumVotesPerTransaction'], message: 'Maximum votes must be at least the minimum.' });
+  if (!value.webVotingEnabled && !value.ussdVotingEnabled) context.addIssue({ code: 'custom', path: ['webVotingEnabled'], message: 'Enable at least one voting channel.' });
+});
+const eventPatchSchema = z.object({
+  name: z.string().trim().min(3).max(100), description: z.string().trim().max(500),
+  startAt: z.coerce.date(), endAt: z.coerce.date(), timezone: z.string().trim().min(2).max(60),
+  currency: z.string().trim().length(3).transform((value) => value.toUpperCase()),
+  defaultVotePrice: z.number().int().positive(), minimumVotes: z.number().int().positive(),
+  maximumVotesPerTransaction: z.number().int().positive(), webVotingEnabled: z.boolean(), ussdVotingEnabled: z.boolean(),
+  resultsVisibility: z.enum(['EXACT_TOTALS', 'PERCENTAGES', 'RANKING_ONLY', 'HIDDEN_UNTIL_END', 'ADMIN_ONLY', 'MANUAL_RELEASE']),
+  bannerUrl: z.string().trim().max(300),
+}).partial().strict();
 
 function slugify(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -19,8 +51,97 @@ function slugify(value: string) {
 organizerRouter.get('/context', async (req, res, next) => {
   try {
     const { organizationId } = (req as AuthenticatedRequest).auth;
-    const events = await prisma.event.findMany({ where: { organizationId, status: { not: EventStatus.ARCHIVED } }, select: { id: true, name: true, status: true }, orderBy: { createdAt: 'desc' } });
+    const events = await prisma.event.findMany({ where: { organizationId, status: { not: EventStatus.ARCHIVED } }, select: { id: true, name: true, description: true, status: true, bannerUrl: true, startAt: true, endAt: true, timezone: true, currency: true, defaultVotePrice: true, minimumVotes: true, maximumVotesPerTransaction: true, webVotingEnabled: true, ussdVotingEnabled: true, resultsVisibility: true }, orderBy: { createdAt: 'desc' } });
     res.json({ success: true, data: { events } });
+  } catch (error) { next(error); }
+});
+
+organizerRouter.post('/events', requireRoles(...managerRoles), async (req, res, next) => {
+  try {
+    const input = eventSchema.parse(req.body);
+    const { organizationId, userId } = (req as AuthenticatedRequest).auth;
+    const now = new Date();
+    const status = input.startAt > now ? EventStatus.SCHEDULED : EventStatus.ACTIVE;
+    const event = await prisma.$transaction(async (tx) => {
+      const created = await tx.event.create({
+        data: { ...input, organizationId, slug: `${slugify(input.name)}-${Date.now().toString(36)}`, description: input.description || null, status },
+      });
+      await tx.auditLog.create({ data: { organizationId, userId, action: 'EVENT_PUBLISHED', resourceType: 'Event', resourceId: created.id, newValue: { name: created.name, status: created.status } } });
+      return created;
+    });
+    res.status(201).json({ success: true, data: event, message: 'Event published.' });
+  } catch (error) { next(error); }
+});
+
+organizerRouter.patch('/events/:id', requireRoles(...managerRoles), async (req, res, next) => {
+  try {
+    const id = z.string().cuid().parse(req.params.id);
+    const input = eventPatchSchema.parse(req.body);
+    const auth = (req as AuthenticatedRequest).auth;
+    const current = await prisma.event.findFirst({ where: { id, organizationId: auth.organizationId } });
+    if (!current) throw new AppError(404, 'EVENT_NOT_FOUND', 'Event was not found.');
+    const merged = {
+      name: input.name ?? current.name, description: input.description ?? current.description ?? undefined,
+      startAt: input.startAt ?? current.startAt, endAt: input.endAt ?? current.endAt,
+      timezone: input.timezone ?? current.timezone, currency: input.currency ?? current.currency,
+      defaultVotePrice: input.defaultVotePrice ?? current.defaultVotePrice,
+      minimumVotes: input.minimumVotes ?? current.minimumVotes,
+      maximumVotesPerTransaction: input.maximumVotesPerTransaction ?? current.maximumVotesPerTransaction,
+      webVotingEnabled: input.webVotingEnabled ?? current.webVotingEnabled,
+      ussdVotingEnabled: input.ussdVotingEnabled ?? current.ussdVotingEnabled,
+      resultsVisibility: input.resultsVisibility ?? current.resultsVisibility,
+      bannerUrl: input.bannerUrl ?? current.bannerUrl ?? undefined,
+    };
+    if (merged.endAt <= merged.startAt) throw new AppError(400, 'INVALID_EVENT_WINDOW', 'End time must be after start time.');
+    if (input.endAt && input.endAt <= new Date()) throw new AppError(400, 'INVALID_EVENT_END', 'The new end time must be in the future.');
+    if (merged.maximumVotesPerTransaction < merged.minimumVotes) throw new AppError(400, 'INVALID_VOTE_LIMITS', 'Maximum votes must be at least the minimum.');
+    if (!merged.webVotingEnabled && !merged.ussdVotingEnabled) throw new AppError(400, 'VOTING_CHANNEL_REQUIRED', 'Enable at least one voting channel.');
+    const updated = await prisma.$transaction(async (tx) => {
+      const changed = await tx.event.update({ where: { id }, data: input });
+      await tx.auditLog.create({ data: { organizationId: auth.organizationId, userId: auth.userId, action: 'EVENT_UPDATED', resourceType: 'Event', resourceId: id, oldValue: { name: current.name, startAt: current.startAt, endAt: current.endAt }, newValue: { name: changed.name, startAt: changed.startAt, endAt: changed.endAt } } });
+      return changed;
+    });
+    res.json({ success: true, data: updated });
+  } catch (error) { next(error); }
+});
+
+organizerRouter.patch('/events/:id/voting-status', requireRoles(...managerRoles), async (req, res, next) => {
+  try {
+    const id = z.string().cuid().parse(req.params.id);
+    const { action } = z.object({ action: z.enum(['pause', 'resume']) }).parse(req.body);
+    const auth = (req as AuthenticatedRequest).auth;
+    const event = await prisma.event.findFirst({ where: { id, organizationId: auth.organizationId } });
+    if (!event) throw new AppError(404, 'EVENT_NOT_FOUND', 'Event was not found.');
+    if (action === 'pause' && event.status !== EventStatus.ACTIVE) {
+      throw new AppError(409, 'EVENT_NOT_ACTIVE', 'Only active voting can be paused.');
+    }
+    if (action === 'resume') {
+      if (event.status !== EventStatus.PAUSED) throw new AppError(409, 'EVENT_NOT_PAUSED', 'This event is not paused.');
+      const now = new Date();
+      if (event.startAt > now || event.endAt <= now) throw new AppError(409, 'EVENT_OUTSIDE_VOTING_WINDOW', 'Voting can only resume during the event voting period.');
+    }
+    const nextStatus = action === 'pause' ? EventStatus.PAUSED : EventStatus.ACTIVE;
+    const updated = await prisma.$transaction(async (tx) => {
+      const changed = await tx.event.update({ where: { id: event.id }, data: { status: nextStatus }, select: { id: true, name: true, status: true } });
+      await tx.auditLog.create({ data: { organizationId: auth.organizationId, userId: auth.userId, action: action === 'pause' ? 'EVENT_VOTING_PAUSED' : 'EVENT_VOTING_RESUMED', resourceType: 'Event', resourceId: event.id, oldValue: { status: event.status }, newValue: { status: nextStatus } } });
+      return changed;
+    });
+    res.json({ success: true, data: updated, message: action === 'pause' ? 'Voting paused.' : 'Voting resumed.' });
+  } catch (error) { next(error); }
+});
+
+organizerRouter.delete('/events/:id', requireRoles(...managerRoles), async (req, res, next) => {
+  try {
+    const id = z.string().cuid().parse(req.params.id);
+    const auth = (req as AuthenticatedRequest).auth;
+    const event = await prisma.event.findFirst({ where: { id, organizationId: auth.organizationId } });
+    if (!event) throw new AppError(404, 'EVENT_NOT_FOUND', 'Event was not found.');
+    if (event.status === EventStatus.ACTIVE) throw new AppError(409, 'ACTIVE_EVENT_ARCHIVE_BLOCKED', 'Pause voting before archiving an active event.');
+    await prisma.$transaction(async (tx) => {
+      await tx.event.update({ where: { id }, data: { status: EventStatus.ARCHIVED } });
+      await tx.auditLog.create({ data: { organizationId: auth.organizationId, userId: auth.userId, action: 'EVENT_ARCHIVED', resourceType: 'Event', resourceId: id, oldValue: { status: event.status }, newValue: { status: EventStatus.ARCHIVED } } });
+    });
+    res.json({ success: true, data: null, message: 'Event archived.' });
   } catch (error) { next(error); }
 });
 
@@ -81,6 +202,60 @@ organizerRouter.get('/candidates', async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+const candidateImageTypes = new Map([
+  ['image/jpeg', { extension: 'jpg', signature: (data: Buffer) => data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff }],
+  ['image/png', { extension: 'png', signature: (data: Buffer) => data.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) }],
+  ['image/webp', { extension: 'webp', signature: (data: Buffer) => data.subarray(0, 4).toString() === 'RIFF' && data.subarray(8, 12).toString() === 'WEBP' }],
+]);
+
+organizerRouter.post('/event-images', requireRoles(...managerRoles), express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '5mb' }), async (req, res, next) => {
+  try {
+    const contentType = req.headers['content-type']?.split(';')[0] || '';
+    const imageType = candidateImageTypes.get(contentType);
+    const data = req.body as Buffer;
+    if (!imageType || !Buffer.isBuffer(data) || data.length === 0 || !imageType.signature(data)) {
+      throw new AppError(400, 'INVALID_EVENT_IMAGE', 'Upload a valid JPEG, PNG, or WebP image.');
+    }
+    const directory = path.resolve(process.cwd(), 'uploads', 'events');
+    await mkdir(directory, { recursive: true });
+    const filename = `${randomUUID()}.${imageType.extension}`;
+    await writeFile(path.join(directory, filename), data, { flag: 'wx' });
+    res.status(201).json({ success: true, data: { bannerUrl: `/api/v1/public/event-images/${filename}` } });
+  } catch (error) { next(error); }
+});
+
+organizerRouter.patch('/events/:id/banner', requireRoles(...managerRoles), async (req, res, next) => {
+  try {
+    const id = z.string().cuid().parse(req.params.id);
+    const { bannerUrl } = z.object({ bannerUrl: z.string().trim().max(300) }).parse(req.body);
+    const auth = (req as AuthenticatedRequest).auth;
+    const event = await prisma.event.findFirst({ where: { id, organizationId: auth.organizationId }, select: { id: true, bannerUrl: true } });
+    if (!event) throw new AppError(404, 'EVENT_NOT_FOUND', 'Event was not found.');
+    const updated = await prisma.$transaction(async (tx) => {
+      const changed = await tx.event.update({ where: { id }, data: { bannerUrl }, select: { id: true, name: true, status: true, bannerUrl: true } });
+      await tx.auditLog.create({ data: { organizationId: auth.organizationId, userId: auth.userId, action: 'EVENT_BANNER_UPDATED', resourceType: 'Event', resourceId: id, oldValue: { bannerUrl: event.bannerUrl }, newValue: { bannerUrl } } });
+      return changed;
+    });
+    res.json({ success: true, data: updated });
+  } catch (error) { next(error); }
+});
+
+organizerRouter.post('/candidate-images', requireRoles(...managerRoles), express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '5mb' }), async (req, res, next) => {
+  try {
+    const contentType = req.headers['content-type']?.split(';')[0] || '';
+    const imageType = candidateImageTypes.get(contentType);
+    const data = req.body as Buffer;
+    if (!imageType || !Buffer.isBuffer(data) || data.length === 0 || !imageType.signature(data)) {
+      throw new AppError(400, 'INVALID_CANDIDATE_IMAGE', 'Upload a valid JPEG, PNG, or WebP image.');
+    }
+    const directory = path.resolve(process.cwd(), 'uploads', 'candidates');
+    await mkdir(directory, { recursive: true });
+    const filename = `${randomUUID()}.${imageType.extension}`;
+    await writeFile(path.join(directory, filename), data, { flag: 'wx' });
+    res.status(201).json({ success: true, data: { photoUrl: `/api/v1/public/candidate-images/${filename}` } });
+  } catch (error) { next(error); }
+});
+
 organizerRouter.post('/candidates', requireRoles(...managerRoles), async (req, res, next) => {
   try {
     const input = candidateSchema.parse(req.body);
@@ -122,12 +297,42 @@ organizerRouter.delete('/candidates/:id', requireRoles(...managerRoles), async (
 organizerRouter.get('/payments', requireRoles(OrganizationRole.ORGANIZATION_OWNER, OrganizationRole.FINANCE_ADMIN), async (req, res, next) => {
   try {
     const auth = (req as AuthenticatedRequest).auth;
-    const query = z.object({ search: z.string().trim().max(100).default(''), status: z.nativeEnum(PaymentStatus).optional(), page: z.coerce.number().int().positive().default(1) }).parse(req.query);
-    const where = { organizationId: auth.organizationId, ...(query.status ? { status: query.status } : {}), ...(query.search ? { OR: [{ reference: { contains: query.search, mode: 'insensitive' as const } }, { order: { candidate: { name: { contains: query.search, mode: 'insensitive' as const } } } }] } : {}) };
-    const [payments, total] = await Promise.all([
-      prisma.payment.findMany({ where, include: { order: { select: { quantity: true, channel: true, voterPhone: true, candidate: { select: { name: true, candidateCode: true } }, category: { select: { name: true } } } } }, orderBy: { createdAt: 'desc' }, skip: (query.page - 1) * 25, take: 25 }),
+    const query = z.object({ search: z.string().trim().max(100).default(''), eventId: z.string().cuid().optional(), status: z.nativeEnum(PaymentStatus).optional(), channel: z.nativeEnum(VoteChannel).optional(), provider: z.nativeEnum(PaymentProviderName).optional(), from: z.coerce.date().optional(), to: z.coerce.date().optional(), page: z.coerce.number().int().positive().default(1), pageSize: z.coerce.number().int().min(10).max(100).default(25) }).parse(req.query);
+    const to = query.to ? new Date(query.to) : undefined;
+    if (to) to.setUTCHours(23, 59, 59, 999);
+    const where: Prisma.PaymentWhereInput = {
+      organizationId: auth.organizationId,
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.provider ? { provider: query.provider } : {}),
+      ...(query.from || to ? { createdAt: { ...(query.from ? { gte: query.from } : {}), ...(to ? { lte: to } : {}) } } : {}),
+      ...(query.eventId || query.channel ? { order: { ...(query.eventId ? { eventId: query.eventId } : {}), ...(query.channel ? { channel: query.channel } : {}) } } : {}),
+      ...(query.search ? { OR: [{ reference: { contains: query.search, mode: 'insensitive' } }, { providerTransactionId: { contains: query.search, mode: 'insensitive' } }, { order: { candidate: { name: { contains: query.search, mode: 'insensitive' } } } }, { order: { candidate: { candidateCode: { contains: query.search, mode: 'insensitive' } } } }] } : {}),
+    };
+    const [payments, total, paid, failed, revenueByCurrency, voteAggregate] = await Promise.all([
+      prisma.payment.findMany({ where, include: { order: { select: { quantity: true, channel: true, voterPhone: true, event: { select: { id: true, name: true } }, candidate: { select: { name: true, candidateCode: true } }, category: { select: { name: true } } } } }, orderBy: { createdAt: 'desc' }, skip: (query.page - 1) * query.pageSize, take: query.pageSize }),
       prisma.payment.count({ where }),
+      prisma.payment.count({ where: { ...where, status: PaymentStatus.PAID } }),
+      prisma.payment.count({ where: { ...where, status: PaymentStatus.FAILED } }),
+      prisma.payment.groupBy({ by: ['currency'], where: { ...where, status: PaymentStatus.PAID }, _sum: { amount: true } }),
+      prisma.voteTransaction.aggregate({ where: { payment: { is: where } }, _sum: { quantity: true } }),
     ]);
-    res.json({ success: true, data: { items: payments, pagination: { page: query.page, pageSize: 25, total } } });
+    res.json({ success: true, data: {
+      items: payments.map((payment) => ({ ...payment, order: { ...payment.order, voterPhone: payment.order.voterPhone.replace(/.(?=.{4})/g, '•') } })),
+      summary: { total, paid, failed, successRate: total ? Math.round((paid / total) * 1000) / 10 : 0, creditedVotes: voteAggregate._sum.quantity ?? 0, revenueByCurrency: revenueByCurrency.map((item) => ({ currency: item.currency, amount: item._sum.amount ?? 0 })) },
+      pagination: { page: query.page, pageSize: query.pageSize, total, pageCount: Math.ceil(total / query.pageSize) },
+    } });
+  } catch (error) { next(error); }
+});
+
+organizerRouter.get('/payments/:id', requireRoles(OrganizationRole.ORGANIZATION_OWNER, OrganizationRole.FINANCE_ADMIN), async (req, res, next) => {
+  try {
+    const auth = (req as AuthenticatedRequest).auth;
+    const id = z.string().cuid().parse(req.params.id);
+    const payment = await prisma.payment.findFirst({
+      where: { id, organizationId: auth.organizationId },
+      include: { order: { include: { event: { select: { name: true } }, category: { select: { name: true } }, candidate: { select: { name: true, candidateCode: true } }, voteTransaction: { select: { id: true, quantity: true, createdAt: true } } } } },
+    });
+    if (!payment) throw new AppError(404, 'PAYMENT_NOT_FOUND', 'Payment was not found.');
+    res.json({ success: true, data: { ...payment, order: { ...payment.order, voterPhone: payment.order.voterPhone.replace(/.(?=.{4})/g, '•'), voterEmail: payment.order.voterEmail ? 'Provided' : null } } });
   } catch (error) { next(error); }
 });

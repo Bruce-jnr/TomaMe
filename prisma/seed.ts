@@ -1,5 +1,5 @@
 import argon2 from 'argon2';
-import { EventStatus, MembershipStatus, OrganizationRole, OrganizationStatus, PaymentProviderName, PaymentStatus, RecordStatus, VoteChannel, VoteStatus } from '@prisma/client';
+import { EventStatus, MembershipStatus, OrganizationRole, OrganizationStatus, PaymentProviderName, PaymentStatus, RecordStatus, ResultsVisibility, VoteChannel, VoteStatus } from '@prisma/client';
 import { prisma } from '../server/db/prisma.js';
 
 const eventBanner =
@@ -26,7 +26,7 @@ async function main() {
         slug: 'ghana-student-awards-2026',
       },
     },
-    update: { status: EventStatus.ACTIVE },
+    update: { status: EventStatus.ACTIVE, resultsVisibility: ResultsVisibility.EXACT_TOTALS },
     create: {
       organizationId: organization.id,
       name: 'Ghana Student Awards 2026',
@@ -40,6 +40,7 @@ async function main() {
       minimumVotes: 1,
       maximumVotesPerTransaction: 500,
       status: EventStatus.ACTIVE,
+      resultsVisibility: ResultsVisibility.EXACT_TOTALS,
       webVotingEnabled: true,
     },
   });
@@ -124,7 +125,11 @@ async function main() {
     update: {},
     create: { organizationId: organization.id, eventId: event.id, categoryId: candidate.categoryId, candidateId: candidate.id, orderId: order.id, paymentId: payment.id, quantity: 25, unitPrice: 100, amount: 2500, currency: 'GHS', channel: VoteChannel.WEB, paymentReference: reference },
   });
-  await prisma.candidate.update({ where: { id: candidate.id }, data: { cachedVoteCount: 25 } });
+  const ledgerTotals = await prisma.voteTransaction.groupBy({ by: ['candidateId'], where: { eventId: event.id }, _sum: { quantity: true } });
+  const adjustmentTotals = await prisma.voteAdjustment.groupBy({ by: ['candidateId'], where: { candidate: { eventId: event.id } }, _sum: { quantity: true } });
+  const totals = new Map(ledgerTotals.map((item) => [item.candidateId, item._sum.quantity ?? 0]));
+  for (const item of adjustmentTotals) totals.set(item.candidateId, (totals.get(item.candidateId) ?? 0) + (item._sum.quantity ?? 0));
+  await Promise.all(Array.from(totals, ([candidateId, cachedVoteCount]) => prisma.candidate.update({ where: { id: candidateId }, data: { cachedVoteCount } })));
 }
 
 main()

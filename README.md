@@ -12,6 +12,7 @@ The application uses a React frontend and a Node.js/Express API written in TypeS
 - Live event discovery
 - Event search and live/upcoming/ended filters
 - Featured candidate listing
+- Visibility-aware category voting statistics and contestant results
 - Public organizer overview
 - Mobile and desktop navigation
 
@@ -24,7 +25,7 @@ The application uses a React frontend and a Node.js/Express API written in TypeS
 - Candidate creation, unique codes, category assignment, and archiving
 - Searchable and status-filterable payment ledger
 - Responsive organizer navigation
-- Multi-step event creation draft with validation and local persistence
+- Multi-step authenticated event publishing with validation and local draft recovery
 
 ### Voting foundation
 
@@ -32,6 +33,8 @@ The application uses a React frontend and a Node.js/Express API written in TypeS
 - Integer minor-unit price calculations
 - Server-side vote quantity constraints
 - Payment-provider interface
+- Paystack hosted-checkout initialization and callback verification
+- Paystack HMAC-SHA512 webhook validation
 - Transactional verified-payment processing
 - Idempotent vote crediting
 - Append-oriented vote ledger and adjustments
@@ -172,6 +175,8 @@ These credentials are only for local development. Set unique `SEED_ADMIN_EMAIL` 
 
 Unauthenticated access to secured organizer pages displays the organizer login form.
 
+Publishing an event creates it in PostgreSQL as `SCHEDULED` or `ACTIVE`, based on its configured voting window. Published events appear in Explore and link to a public event page containing their categories and contestants.
+
 ## API Routes
 
 ### Health
@@ -184,8 +189,25 @@ Unauthenticated access to secured organizer pages displays the organizer login f
 - `GET /api/v1/public/events`
 - `GET /api/v1/public/candidates/featured`
 - `POST /api/v1/vote-orders`
+- `POST /api/v1/payments/:reference/initialize`
+- `GET /api/v1/payments/:reference/verify`
+- `POST /api/webhooks/paystack`
 
-The vote-order endpoint accepts candidate ID, quantity, phone number, optional email, and `WEB` or `USSD` channel. The server retrieves the event and category price and calculates the authoritative total.
+The vote-order endpoint accepts candidate ID, quantity, phone number, and `WEB` or `USSD` channel. The server retrieves the event and category price and calculates the authoritative total.
+
+Voters provide only a phone number. Paystack requires an email field during hosted transaction initialization, so the API supplies the event organization's configured email internally and does not store a voter email unless a future channel explicitly provides one.
+
+### Paystack setup
+
+Use `pk_test_...` and `sk_test_...` credentials while developing. The API deliberately blocks `sk_live_...` keys unless `NODE_ENV=production`.
+
+Configure the Paystack webhook URL as:
+
+```text
+https://your-api.example.com/api/webhooks/paystack
+```
+
+The webhook validates `x-paystack-signature` against the exact raw body, verifies the transaction through Paystack, checks amount and currency against the vote order, and credits votes idempotently.
 
 ### Authentication
 
@@ -229,6 +251,8 @@ Use `db:migrate` while developing schema changes. Use `db:deploy` to apply commi
 ## Financial Integrity
 
 `VoteTransaction` is the authoritative vote ledger. `Candidate.cachedVoteCount` is a performance cache and must be reconstructable from ledger transactions and adjustments.
+
+Public category statistics follow each event's `resultsVisibility` configuration. Exact totals, percentages, or rankings are returned only when that mode permits them; admin-only and unreleased results are not included in public API responses.
 
 Verified-payment crediting runs in a serializable database transaction and checks:
 
@@ -301,7 +325,7 @@ views/                    Original UI design references
 
 The following work is intentionally not represented as production-ready:
 
-- Live Paystack initialization, verification, and webhook endpoints
+- Production Paystack account validation and live webhook deployment
 - Arkesel USSD and SMS provider implementations
 - Redis session storage and BullMQ jobs
 - Object-storage uploads for event and candidate images

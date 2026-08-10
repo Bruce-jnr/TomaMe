@@ -152,7 +152,7 @@ model Event {
   id                         String            @id @default(cuid())
   organizationId             String
   name                       String
-  slug                       String
+  slug                       String            @unique
   description                String?
   bannerUrl                  String?
   startAt                    DateTime
