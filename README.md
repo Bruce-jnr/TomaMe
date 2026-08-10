@@ -195,6 +195,19 @@ Publishing an event creates it in PostgreSQL as `SCHEDULED` or `ACTIVE`, based o
 
 The vote-order endpoint accepts candidate ID, quantity, phone number, and `WEB` or `USSD` channel. The server retrieves the event and category price and calculates the authoritative total.
 
+### USSD voting
+
+Configure the Arkesel USSD callback as:
+
+```text
+POST https://your-api.example.com/api/v1/ussd/arkesel
+Content-Type: application/json
+```
+
+The route implements: main menu, nominee-code lookup, vote quantity, price preview, acceptance, Paystack Ghana mobile-money authorization, and asynchronous webhook crediting. TomaMe never collects the customer's Mobile Money PIN; the carrier/Paystack authorization prompt handles it.
+
+Arkesel request fields are `sessionID`, `userID`, `newSession`, `msisdn`, `userData`, and `network`. Development sessions use an expiring in-memory store. Configure Redis-backed session storage before running multiple API instances in production.
+
 Voters provide only a phone number. Paystack requires an email field during hosted transaction initialization, so the API supplies the event organization's configured email internally and does not store a voter email unless a future channel explicitly provides one.
 
 ### Paystack setup

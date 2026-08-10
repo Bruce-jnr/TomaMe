@@ -18,6 +18,10 @@ const verifyResponseSchema = z.object({
     currency: z.string(), channel: z.string().optional(), paid_at: z.string().datetime().nullable().optional(),
   }),
 });
+const mobileMoneyResponseSchema = z.object({
+  status: z.boolean(), message: z.string(),
+  data: z.object({ reference: z.string(), status: z.string(), display_text: z.string().optional() }),
+});
 
 export function isValidPaystackSignature(rawBody: Buffer, signature: string | undefined, secretKey: string): boolean {
   if (!signature || !/^[a-f0-9]{128}$/i.test(signature)) return false;
@@ -67,8 +71,17 @@ export class PaystackProvider implements PaymentProvider {
     return { reference: response.data.reference, authorizationUrl: response.data.authorization_url };
   }
 
-  async initializeMobileMoney(): Promise<PaymentInitialization> {
-    throw new AppError(501, 'MOBILE_MONEY_DIRECT_NOT_IMPLEMENTED', 'Direct mobile money initialization is not available.');
+  async initializeMobileMoney(input: { reference: string; amount: number; currency: string; email: string; phone: string; provider: 'mtn' | 'atl' | 'vod' }) {
+    const raw = await this.request('/charge', { method: 'POST', body: JSON.stringify({
+      reference: input.reference, amount: String(input.amount), currency: input.currency, email: input.email,
+      mobile_money: { phone: input.phone, provider: input.provider },
+      metadata: JSON.stringify({ phone: input.phone, source: 'TomaMe USSD voting' }),
+    }) });
+    const response = mobileMoneyResponseSchema.parse(raw);
+    if (!response.status || response.data.reference !== input.reference || !['pay_offline', 'success'].includes(response.data.status)) {
+      throw new AppError(502, 'MOBILE_MONEY_INITIALIZATION_FAILED', 'Mobile money authorization could not be started.');
+    }
+    return { reference: response.data.reference, status: response.data.status as 'pay_offline' | 'success', displayText: response.data.display_text || 'Approve the payment request on your phone.' };
   }
 
   async verifyPayment(reference: string): Promise<VerifiedPayment> {

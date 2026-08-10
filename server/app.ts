@@ -14,6 +14,7 @@ import { organizerRouter } from './routes/organizer.routes.js';
 import { paymentsRouter } from './routes/payments.routes.js';
 import { publicRouter } from './routes/public.routes.js';
 import { voteOrdersRouter } from './routes/vote-orders.routes.js';
+import { ussdRouter } from './routes/ussd.routes.js';
 import { webhookRouter } from './routes/webhook.routes.js';
 
 export const app = express();
@@ -36,6 +37,7 @@ app.use('/api/v1/public/event-images', express.static(path.resolve(process.cwd()
 app.use('/api/v1/payments', rateLimit({ windowMs: 60_000, limit: 30 }), paymentsRouter);
 app.use('/api/v1/public', publicRouter);
 app.use('/api/v1/vote-orders', rateLimit({ windowMs: 60_000, limit: 20 }), voteOrdersRouter);
+app.use('/api/v1/ussd', rateLimit({ windowMs: 60_000, limit: 60 }), ussdRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
