@@ -692,14 +692,14 @@ h3 {
   display: none;
 }
 .faq-list summary::after {
-  content: "+";
+  content: '+';
   flex: none;
   color: var(--gold-dark);
   font-size: 22px;
   font-weight: 500;
 }
 .faq-list details[open] summary::after {
-  content: "−";
+  content: '−';
 }
 .faq-list details p {
   max-width: 690px;
@@ -3848,6 +3848,73 @@ h3 {
 .organizer-login .primary-action:disabled {
   opacity: 0.65;
 }
+.login-text-action {
+  margin-top: 13px;
+  padding: 4px;
+  border: 0;
+  color: var(--gold-dark);
+  background: transparent;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.recovery-phone-panel {
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 20px;
+  padding: 12px 14px;
+  border: 1px solid #d9dee1;
+  border-left: 3px solid var(--gold);
+  border-radius: 6px;
+  background: white;
+}
+.recovery-phone-panel > div {
+  min-width: 180px;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+.recovery-phone-panel small {
+  color: var(--muted);
+  font-size: 8px;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+.recovery-phone-panel strong {
+  font-size: 11px;
+}
+.recovery-phone-panel form {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.recovery-phone-panel form input {
+  min-height: 42px;
+  width: 170px;
+  padding: 0 11px;
+  border: 1px solid #cfd4d7;
+  border-radius: 6px;
+  outline: 0;
+  font-size: 11px;
+}
+.recovery-phone-panel form input:focus {
+  border-color: var(--gold-dark);
+}
+.recovery-error,
+.recovery-saved {
+  width: 100%;
+  font-size: 9px;
+}
+.recovery-error {
+  color: #982739;
+}
+.recovery-saved {
+  color: #14623a;
+}
 .back-public {
   margin-top: 18px;
   color: var(--gold-dark);
@@ -3956,6 +4023,16 @@ h3 {
   }
 }
 @media (max-width: 560px) {
+  .recovery-phone-panel {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .recovery-phone-panel > .secondary-action,
+  .recovery-phone-panel form,
+  .recovery-phone-panel form input,
+  .recovery-phone-panel form button {
+    width: 100%;
+  }
   .management-header {
     align-items: flex-start;
     flex-direction: column;

@@ -157,14 +157,23 @@ export async function handleUssd(
     where: { id: order.id },
     include: { organization: { select: { email: true } } },
   });
-  const charge = await paystackProvider.initializeMobileMoney({
-    reference: order.paymentReference,
-    amount: order.amount,
-    currency: order.currency,
-    email: savedOrder.organization.email,
-    phone,
-    provider: providerFor(session.network),
-  });
+  let charge;
+  try {
+    charge = await paystackProvider.initializeMobileMoney({
+      reference: order.paymentReference,
+      amount: order.amount,
+      currency: order.currency,
+      email: savedOrder.organization.email,
+      phone,
+      provider: providerFor(session.network),
+    });
+  } catch (error) {
+    await prisma.voteOrder.update({
+      where: { id: order.id },
+      data: { paymentStatus: PaymentStatus.FAILED },
+    });
+    throw error;
+  }
   await prisma.voteOrder.update({
     where: { id: order.id },
     data: { paymentStatus: PaymentStatus.PROCESSING },

@@ -36,7 +36,7 @@ async function api(path, options = {}) {
   });
   const body = await response.json().catch(() => null);
   if (!response.ok || !body?.success) {
-    const error = new Error(body?.error?.message || 'Request failed.');
+    const error = new Error(body?.error?.message || (response.status === 429 ? 'Too many attempts. Please wait before trying again.' : 'Request failed.'));
     error.code = body?.error?.code;
     error.status = response.status;
     throw error;
@@ -45,8 +45,12 @@ async function api(path, options = {}) {
 }
 
 function LoginPage({ onLogin }) {
-  const [email, setEmail] = useState('organizer@tomame.test');
+  const [mode, setMode] = useState('login');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [challengeId, setChallengeId] = useState('');
   const [state, setState] = useState({ loading: false, error: '' });
   async function submit(event) {
     event.preventDefault();
@@ -61,6 +65,39 @@ function LoginPage({ onLogin }) {
       setState({ loading: false, error: error.message });
     }
   }
+  async function requestReset(event) {
+    event.preventDefault(); setState({ loading: true, error: '' });
+    try {
+      const data = await api('/api/v1/auth/password-reset/request', { method: 'POST', body: JSON.stringify({ email }) });
+      setChallengeId(data.challengeId); setMode('confirm'); setState({ loading: false, error: '' });
+    } catch (error) { setState({ loading: false, error: error.message }); }
+  }
+  async function confirmReset(event) {
+    event.preventDefault();
+    if (password !== confirmPassword) { setState({ loading: false, error: 'Passwords do not match.' }); return; }
+    setState({ loading: true, error: '' });
+    try {
+      await api('/api/v1/auth/password-reset/confirm', { method: 'POST', body: JSON.stringify({ challengeId, otp, password }) });
+      setPassword(''); setConfirmPassword(''); setOtp(''); setMode('login'); setState({ loading: false, error: '' });
+    } catch (error) { setState({ loading: false, error: error.message }); }
+  }
+  if (mode !== 'login') return (
+    <div className="organizer-login"><Link to="/"><img src={logo} alt="TomaMe" /></Link>
+      <form onSubmit={mode === 'request' ? requestReset : confirmReset}>
+        <span className="eyebrow">Account recovery</span>
+        <h1>{mode === 'request' ? 'Reset your password.' : 'Enter your reset code.'}</h1>
+        <p>{mode === 'request' ? 'We will send a six-digit OTP to your registered recovery phone.' : 'The SMS code expires after 10 minutes.'}</p>
+        {mode === 'request' ? <label>Email address<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></label> : <>
+          <label>Six-digit OTP<input type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength="6" value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, ''))} required /></label>
+          <label>New password<input type="password" autoComplete="new-password" minLength="10" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
+          <label>Confirm new password<input type="password" autoComplete="new-password" minLength="10" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required /></label>
+        </>}
+        {state.error && <div className="admin-form-error" role="alert">{state.error}</div>}
+        <button className="primary-action" disabled={state.loading} type="submit">{state.loading ? <LoaderCircle className="spin" /> : mode === 'request' ? 'Send reset code' : 'Reset password'}</button>
+        <button className="login-text-action" type="button" onClick={() => { setMode('login'); setState({ loading: false, error: '' }); }}>Back to sign in</button>
+      </form>
+    </div>
+  );
   return (
     <div className="organizer-login">
       <Link to="/">
@@ -102,6 +139,9 @@ function LoginPage({ onLogin }) {
           type="submit"
         >
           {state.loading ? <LoaderCircle className="spin" /> : 'Sign in'}
+        </button>
+        <button className="login-text-action" type="button" onClick={() => { setMode('request'); setState({ loading: false, error: '' }); }}>
+          Forgot password?
         </button>
         <Link className="back-public" to="/organizers">
           Back to organizer overview
@@ -301,6 +341,7 @@ function OrganizerOverview({ session, eventManagement = false }) {
 
   return (
     <AdminLayout session={session} title={eventManagement ? 'Events' : 'Overview'} description={eventManagement ? 'Manage event details, publishing assets, and voting availability.' : 'Control voting availability across your events.'} action={eventManagement ? <Link className="primary-action" to="/dashboard/events/new"><Plus /> New event</Link> : undefined}>
+      <RecoveryPhonePanel initialPhone={session.user.phone || ''} />
       {state.error && <div className="admin-alert">{state.error}</div>}
       {state.loading ? <AdminLoading /> : state.events.length ? (
         <div className="event-control-list">
@@ -334,6 +375,26 @@ function OrganizerOverview({ session, eventManagement = false }) {
       {editing && <EventEditForm event={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); loadEvents(); }} />}
     </AdminLayout>
   );
+}
+
+function RecoveryPhonePanel({ initialPhone }) {
+  const [open, setOpen] = useState(!initialPhone);
+  const [phone, setPhone] = useState(initialPhone);
+  const [password, setPassword] = useState('');
+  const [state, setState] = useState({ loading: false, error: '', saved: false });
+  async function submit(event) {
+    event.preventDefault(); setState({ loading: true, error: '', saved: false });
+    try {
+      const updated = await api('/api/v1/auth/me/phone', { method: 'PATCH', body: JSON.stringify({ phone, password }) });
+      setPhone(updated.phone); setPassword(''); setOpen(false); setState({ loading: false, error: '', saved: true });
+    } catch (error) { setState({ loading: false, error: error.message, saved: false }); }
+  }
+  return <section className="recovery-phone-panel">
+    <div><small>Password recovery</small><strong>{phone ? `SMS recovery: ${phone.replace(/.(?=.{4})/g, '•')}` : 'Add a recovery phone'}</strong></div>
+    {!open && <button className="secondary-action" type="button" onClick={() => setOpen(true)}><Pencil /> {phone ? 'Change' : 'Add phone'}</button>}
+    {open && <form onSubmit={submit}><input type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="024 123 4567" required /><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Current password" required /><button className="primary-action" type="submit" disabled={state.loading}>{state.loading ? <LoaderCircle className="spin" /> : 'Save phone'}</button>{phone && <button className="secondary-action" type="button" onClick={() => setOpen(false)}>Cancel</button>}</form>}
+    {state.error && <span className="recovery-error">{state.error}</span>}{state.saved && <span className="recovery-saved">Recovery phone updated.</span>}
+  </section>;
 }
 
 function EventEditForm({ event, onClose, onSaved }) {

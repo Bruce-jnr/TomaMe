@@ -151,7 +151,7 @@ Vite proxies `/api` to port `4000` during development.
 Unless overridden with seed environment variables, `npm run db:seed` creates:
 
 ```text
-Email: organizer@tomame.test
+Email: use `SEED_ADMIN_EMAIL` or the current email stored for the organizer user
 Password: TomaMeDev2026!
 ```
 
@@ -207,6 +207,12 @@ Content-Type: application/json
 The route implements: main menu, nominee-code lookup, vote quantity, price preview, acceptance, Paystack Ghana mobile-money authorization, and asynchronous webhook crediting. TomaMe never collects the customer's Mobile Money PIN; the carrier/Paystack authorization prompt handles it.
 
 Arkesel request fields are `sessionID`, `userID`, `newSession`, `msisdn`, `userData`, and `network`. Development sessions use an expiring in-memory store. Configure Redis-backed session storage before running multiple API instances in production.
+
+### Organizer password recovery
+
+An authenticated organizer must first register a recovery phone from the dashboard using their current password. The sign-in screen then provides **Forgot password?**, which sends a six-digit Arkesel SMS OTP. Reset challenges expire after 10 minutes, allow no more than five verification attempts, are single-use, and replace the password with an Argon2id hash.
+
+Both `ARKESEL_API_KEY` (or the legacy `ARKESEL_APIKEY`) and `ARKESEL_SENDER_ID` must be configured for OTP delivery.
 
 Voters provide only a phone number. Paystack requires an email field during hosted transaction initialization, so the API supplies the event organization's configured email internally and does not store a voter email unless a future channel explicitly provides one.
 

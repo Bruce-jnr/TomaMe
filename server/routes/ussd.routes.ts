@@ -12,7 +12,7 @@ ussdRouter.post('/arkesel', async (req, res, next) => {
     res.json(arkeselResponse(request, result.message, result.continueSession));
   } catch (error) {
     if (request && error instanceof AppError) {
-      res.status(error.statusCode).json(arkeselResponse(request, error.message, false));
+      res.json(arkeselResponse(request, error.message, false));
       return;
     }
     next(error);

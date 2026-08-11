@@ -99,12 +99,28 @@ model User {
   email        String                   @unique
   passwordHash String
   name         String
+  phone        String?                  @unique
   globalRole   GlobalRole               @default(USER)
   twoFactorEnabled Boolean              @default(false)
   memberships OrganizationMembership[]
   auditLogs    AuditLog[]
+  passwordResetChallenges PasswordResetChallenge[]
   createdAt    DateTime                 @default(now())
   updatedAt    DateTime                 @updatedAt
+}
+
+model PasswordResetChallenge {
+  id         String    @id @default(cuid())
+  userId     String
+  phone      String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([expiresAt, consumedAt])
 }
 
 model Organization {

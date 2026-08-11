@@ -72,6 +72,13 @@ export class PaystackProvider implements PaymentProvider {
   }
 
   async initializeMobileMoney(input: { reference: string; amount: number; currency: string; email: string; phone: string; provider: 'mtn' | 'atl' | 'vod' }) {
+    if (this.secretKey.startsWith('sk_test_') && input.provider === 'mtn' && input.phone !== '233551234987') {
+      throw new AppError(
+        400,
+        'PAYSTACK_TEST_PHONE_REQUIRED',
+        'Paystack test mode requires the MTN test number 233551234987.',
+      );
+    }
     const raw = await this.request('/charge', { method: 'POST', body: JSON.stringify({
       reference: input.reference, amount: String(input.amount), currency: input.currency, email: input.email,
       mobile_money: { phone: input.phone, provider: input.provider },
