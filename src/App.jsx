@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   AlertCircle,
@@ -72,6 +72,17 @@ function usePublicData(path) {
 }
 
 function Shell({ children }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const closeOnEscape = (event) => event.key === "Escape" && setMenuOpen(false);
+    document.addEventListener("keydown", closeOnEscape);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      document.body.style.overflow = "";
+    };
+  }, [menuOpen]);
   return (
     <div className="app-shell">
       <header className="site-header">
@@ -87,15 +98,33 @@ function Shell({ children }) {
             For organizers
           </Link>
           <button
-            className="icon-button"
+            className="icon-button menu-trigger"
             type="button"
             aria-label="Open menu"
             title="Menu"
+            aria-expanded={menuOpen}
+            aria-controls="mobile-menu"
+            onClick={() => setMenuOpen(true)}
           >
             <Menu size={21} />
           </button>
         </div>
       </header>
+      {menuOpen && (
+        <div className="mobile-menu-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setMenuOpen(false)}>
+          <aside className="mobile-menu-panel" id="mobile-menu" aria-label="Site menu">
+            <header><img src={logo} alt="TomaMe" /><button className="icon-button" type="button" aria-label="Close menu" title="Close menu" onClick={() => setMenuOpen(false)}><X /></button></header>
+            <nav>
+              <Link to="/" onClick={() => setMenuOpen(false)}>Home <ChevronRight /></Link>
+              <Link to="/events" onClick={() => setMenuOpen(false)}>Explore events <ChevronRight /></Link>
+              <Link className="mobile-organizer-menu-link" to="/organizers" onClick={() => setMenuOpen(false)}>For organizers <ChevronRight /></Link>
+              <Link to="/#faq" onClick={() => setMenuOpen(false)}>FAQ <ChevronRight /></Link>
+              <Link to="/privacy" onClick={() => setMenuOpen(false)}>Privacy Policy <ChevronRight /></Link>
+              <Link to="/terms" onClick={() => setMenuOpen(false)}>Terms &amp; Conditions <ChevronRight /></Link>
+            </nav>
+          </aside>
+        </div>
+      )}
       <main>{children}</main>
       <footer className="site-footer">
         <img src={logo} alt="TomaMe" />
@@ -103,6 +132,9 @@ function Shell({ children }) {
         <nav aria-label="Footer navigation">
           <Link to="/events">Explore events</Link>
           <Link to="/organizers">For organizers</Link>
+          <Link to="/privacy">Privacy</Link>
+          <Link to="/terms">Terms</Link>
+          <Link to="/#faq">FAQ</Link>
         </nav>
       </footer>
       <nav className="mobile-nav" aria-label="Mobile navigation">
@@ -114,22 +146,22 @@ function Shell({ children }) {
           <Compass />
           <span>Explore</span>
         </NavLink>
-        <NavLink to="/events?focus=search">
+        <Link to="/events?focus=search">
           <Search />
           <span>Search</span>
-        </NavLink>
-        <NavLink to="/results">
-          <Trophy />
-          <span>Results</span>
-        </NavLink>
+        </Link>
       </nav>
     </div>
   );
 }
 
-function SearchForm({ initialValue = "", compact = false }) {
+function SearchForm({ initialValue = "", compact = false, focus = false }) {
   const [value, setValue] = useState(initialValue);
   const navigate = useNavigate();
+  const inputRef = useRef(null);
+  useEffect(() => {
+    if (focus) inputRef.current?.focus();
+  }, [focus]);
   function submit(event) {
     event.preventDefault();
     navigate(
@@ -144,6 +176,7 @@ function SearchForm({ initialValue = "", compact = false }) {
     >
       <Search aria-hidden="true" />
       <input
+        ref={inputRef}
         value={value}
         onChange={(event) => setValue(event.target.value)}
         placeholder="Search candidate, event or code"
@@ -311,6 +344,39 @@ function HomePage() {
           </li>
         </ol>
       </section>
+      <section className="faq-section" id="faq">
+        <div className="faq-heading">
+          <span className="eyebrow">Frequently asked questions</span>
+          <h2>What voters need to know.</h2>
+          <p>Clear answers about voting, payments, results, and privacy.</p>
+        </div>
+        <div className="faq-list">
+          <details>
+            <summary>Do I need an account to vote?</summary>
+            <p>No. You can vote using your mobile number without creating a TomaMe account.</p>
+          </details>
+          <details>
+            <summary>When are my votes counted?</summary>
+            <p>Votes are credited only after the payment provider confirms the correct amount and currency. A failed or abandoned payment does not add votes.</p>
+          </details>
+          <details>
+            <summary>Can a successful payment add votes twice?</summary>
+            <p>No. Each payment reference can create only one vote transaction, including when a provider sends the same confirmation more than once.</p>
+          </details>
+          <details>
+            <summary>Why might voting be unavailable?</summary>
+            <p>An event may not have started, may have ended, or may be temporarily paused by its organizer.</p>
+          </details>
+          <details>
+            <summary>Does TomaMe collect my Mobile Money PIN?</summary>
+            <p>No. PIN entry and payment authorization happen securely through your mobile network or payment provider.</p>
+          </details>
+          <details>
+            <summary>Who controls event information and results?</summary>
+            <p>The event organizer manages contestants, schedules, pricing, and result visibility. TomaMe provides the voting and transaction platform.</p>
+          </details>
+        </div>
+      </section>
     </Shell>
   );
 }
@@ -319,6 +385,7 @@ function ExplorePage() {
   const [params, setParams] = useSearchParams();
   const status = params.get("status") || "all";
   const search = params.get("search") || "";
+  const focusSearch = params.get("focus") === "search";
   const path = useMemo(
     () =>
       `/api/v1/public/events?status=${encodeURIComponent(status)}&search=${encodeURIComponent(search)}`,
@@ -340,7 +407,7 @@ function ExplorePage() {
           Browse live competitions, upcoming events, and recently announced
           results.
         </p>
-        <SearchForm initialValue={search} compact />
+        <SearchForm key={`${search}-${focusSearch}`} initialValue={search} compact focus={focusSearch} />
       </section>
       <section className="content-section explore-content">
         <div
@@ -1303,6 +1370,43 @@ function PlaceholderPage() {
   );
 }
 
+function PrivacyPage() {
+  return (
+    <Shell>
+      <article className="legal-page">
+        <header><span className="eyebrow">Legal</span><h1>Privacy Policy</h1><p>Last updated: 11 August 2026</p></header>
+        <section><h2>Information we collect</h2><p>When you vote, we collect your mobile number, nominee selection, vote quantity, payment reference, payment status, voting channel, and transaction timestamps. We do not collect your Mobile Money PIN.</p><p>Organizer accounts provide identity, contact, organization, event, category, contestant, and uploaded image information.</p></section>
+        <section><h2>How we use information</h2><p>We use this information to create vote orders, process and verify payments, credit votes, prevent duplicate transactions, display permitted results, support organizers, investigate problems, and protect the platform from misuse.</p></section>
+        <section><h2>Payment providers</h2><p>Payments are processed by third-party providers such as Paystack. They receive the information required to authorize and verify a transaction and handle payment credentials under their own privacy terms.</p></section>
+        <section><h2>USSD voting</h2><p>USSD requests include a temporary session identifier, mobile number, network, and menu input. Session data is used to complete the flow and expires after inactivity. Payment confirmation remains independent of the USSD session.</p></section>
+        <section><h2>Sharing and disclosure</h2><p>We share data with payment, mobile-network, messaging, hosting, and infrastructure providers only as needed to operate TomaMe. We may disclose information where required by law or to address fraud, security, or legal claims.</p></section>
+        <section><h2>Retention and security</h2><p>Transaction and audit records may be retained to reconcile votes, resolve disputes, meet legal obligations, and protect platform integrity. We use access controls, organization isolation, payment verification, and audit records, but no online service can guarantee absolute security.</p></section>
+        <section><h2>Your choices</h2><p>You may contact the relevant event organizer about event-submitted information or contact TomaMe regarding platform data. Some transaction records cannot be deleted immediately where they are required for financial reconciliation, fraud prevention, or legal compliance.</p></section>
+        <section><h2>Changes to this policy</h2><p>We may update this policy as the service changes. The effective date above will be revised when material updates are published.</p></section>
+      </article>
+    </Shell>
+  );
+}
+
+function TermsPage() {
+  return (
+    <Shell>
+      <article className="legal-page">
+        <header><span className="eyebrow">Legal</span><h1>Terms &amp; Conditions</h1><p>Last updated: 11 August 2026</p></header>
+        <section><h2>Using TomaMe</h2><p>By accessing TomaMe or submitting a vote, you agree to these terms. You must provide accurate transaction information, use a payment method you are authorized to use, and comply with applicable law.</p></section>
+        <section><h2>Voting and payments</h2><p>Vote prices, minimum quantities, schedules, contestant eligibility, and result visibility are configured for each event. Review the nominee, quantity, and total before accepting payment. Votes are credited only after successful provider verification.</p></section>
+        <section><h2>Finality and refunds</h2><p>A verified vote is normally final because it affects live event totals. Refunds, reversals, cancellations, or corrections are considered according to the organizer's rules, payment-provider requirements, and applicable law. Contact the event organizer with your payment reference when raising a dispute.</p></section>
+        <section><h2>Organizer responsibilities</h2><p>Organizers are responsible for lawful event operation, accurate event and contestant information, permissions for uploaded content, published rules, prizes, result settings, and responding to participant or voter disputes. Organizers must not manipulate votes or misuse personal information.</p></section>
+        <section><h2>Prohibited conduct</h2><p>You may not interfere with the service, automate unauthorized voting, exploit payment or USSD flows, impersonate others, upload unlawful content, attempt to access another organization, or use TomaMe for fraudulent activity.</p></section>
+        <section><h2>Availability</h2><p>Voting may be unavailable because of schedules, organizer suspension, maintenance, network interruption, or third-party provider failure. We may limit or suspend access to protect users, transactions, and platform integrity.</p></section>
+        <section><h2>Intellectual property</h2><p>TomaMe software, branding, and platform materials remain the property of their respective owners. Organizers retain responsibility for content they submit and grant the permissions necessary to host and display it for their events.</p></section>
+        <section><h2>Liability</h2><p>To the extent permitted by law, TomaMe is not responsible for organizer decisions, event outcomes, prizes, contestant disputes, telecommunications failures, or losses caused by circumstances outside reasonable platform control.</p></section>
+        <section><h2>Changes and contact</h2><p>We may update these terms as the platform changes. Continued use after updated terms are published constitutes acceptance, subject to applicable law.</p></section>
+      </article>
+    </Shell>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -1312,6 +1416,8 @@ function App() {
         <Route path="/events/:slug" element={<EventDetailPage />} />
         <Route path="/payment/verify" element={<PaymentVerifyPage />} />
         <Route path="/organizers" element={<OrganizerPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
         <Route path="/dashboard" element={<DashboardRoute />} />
         <Route path="/dashboard/events/new" element={<CreateEventRoute />} />
         <Route path="/dashboard/events" element={<EventsRoute />} />

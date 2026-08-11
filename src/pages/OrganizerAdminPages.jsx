@@ -175,6 +175,9 @@ function AdminLayout({ session, title, description, action, children }) {
             <p>{description}</p>
           </div>
           {action}
+          <button className="mobile-admin-logout" onClick={logout} type="button" title="Sign out" aria-label="Sign out">
+            <LogOut />
+          </button>
         </header>
         {children}
       </div>

@@ -96,6 +96,12 @@ a {
   color: var(--ink);
   background: #f1f3f4;
 }
+.menu-trigger {
+  display: none;
+}
+.mobile-menu-backdrop {
+  display: none;
+}
 .hero-section {
   min-height: 590px;
   display: grid;
@@ -633,12 +639,105 @@ h3 {
 }
 .site-footer nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 22px;
 }
 .site-footer a {
   color: var(--ink);
   font-size: 10px;
   font-weight: 700;
+}
+.faq-section {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.7fr) minmax(0, 1.3fr);
+  gap: clamp(40px, 7vw, 100px);
+  padding: 80px clamp(20px, 7vw, 110px);
+  border-top: 1px solid var(--line);
+  background: white;
+}
+.faq-heading {
+  align-self: start;
+  position: sticky;
+  top: 105px;
+}
+.faq-heading h2 {
+  margin-bottom: 14px;
+  font-size: 38px;
+}
+.faq-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.faq-list {
+  border-top: 1px solid var(--line);
+}
+.faq-list details {
+  border-bottom: 1px solid var(--line);
+}
+.faq-list summary {
+  min-height: 66px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  list-style: none;
+}
+.faq-list summary::-webkit-details-marker {
+  display: none;
+}
+.faq-list summary::after {
+  content: "+";
+  flex: none;
+  color: var(--gold-dark);
+  font-size: 22px;
+  font-weight: 500;
+}
+.faq-list details[open] summary::after {
+  content: "−";
+}
+.faq-list details p {
+  max-width: 690px;
+  margin: -4px 42px 22px 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.75;
+}
+.legal-page {
+  width: min(860px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 72px 0 100px;
+}
+.legal-page > header {
+  padding-bottom: 34px;
+  border-bottom: 1px solid var(--line);
+}
+.legal-page > header h1 {
+  margin-bottom: 12px;
+  font-size: 52px;
+}
+.legal-page > header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.legal-page section {
+  padding: 27px 0 5px;
+}
+.legal-page section h2 {
+  margin-bottom: 11px;
+  font-size: 22px;
+}
+.legal-page section p {
+  margin: 0 0 12px;
+  color: #4e5962;
+  font-size: 13px;
+  line-height: 1.8;
 }
 
 @media (max-width: 960px) {
@@ -675,6 +774,66 @@ h3 {
   .desktop-nav,
   .organizer-link {
     display: none;
+  }
+  .menu-trigger {
+    display: grid;
+  }
+  .mobile-menu-backdrop {
+    position: fixed;
+    z-index: 100;
+    inset: 0;
+    display: flex;
+    justify-content: flex-end;
+    background: rgba(17, 25, 31, 0.58);
+  }
+  .mobile-menu-panel {
+    width: min(340px, 88vw);
+    min-height: 100%;
+    padding-bottom: env(safe-area-inset-bottom);
+    background: white;
+    box-shadow: -18px 0 50px rgba(17, 25, 31, 0.2);
+  }
+  .mobile-menu-panel > header {
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  .mobile-menu-panel > header img {
+    width: 116px;
+  }
+  .mobile-menu-panel nav {
+    display: flex;
+    flex-direction: column;
+    padding: 12px 18px;
+  }
+  .mobile-menu-panel nav a {
+    min-height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .mobile-menu-panel nav a svg {
+    width: 17px;
+    color: #899198;
+  }
+  .mobile-menu-panel nav .mobile-organizer-menu-link {
+    margin: 12px 0;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 7px;
+    color: white;
+    background: var(--gold-dark);
+  }
+  .mobile-menu-panel nav .mobile-organizer-menu-link svg {
+    color: white;
   }
   .hero-section {
     display: block;
@@ -748,7 +907,7 @@ h3 {
     right: 0;
     height: 68px;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     padding-bottom: env(safe-area-inset-bottom);
     border-top: 1px solid var(--line);
     background: rgba(255, 255, 255, 0.97);
@@ -1467,6 +1626,14 @@ h3 {
 }
 
 @media (max-width: 800px) {
+  .faq-section {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding: 56px 20px;
+  }
+  .faq-heading {
+    position: static;
+  }
   .site-footer {
     margin-bottom: 68px;
     flex-direction: column;
@@ -2172,6 +2339,16 @@ h3 {
   background: #ffe8ec;
 }
 @media (max-width: 560px) {
+  .site-footer nav {
+    gap: 14px 20px;
+  }
+  .legal-page {
+    width: min(100% - 32px, 860px);
+    padding: 50px 0 80px;
+  }
+  .legal-page > header h1 {
+    font-size: 38px;
+  }
   .vote-dialog-backdrop {
     padding: 0;
     align-items: end;
@@ -2872,6 +3049,7 @@ h3 {
   padding: 0 36px 70px;
 }
 .management-header {
+  position: relative;
   min-height: 154px;
   display: flex;
   align-items: end;
@@ -2879,6 +3057,9 @@ h3 {
   gap: 25px;
   padding: 38px 0 25px;
   border-bottom: 1px solid var(--line);
+}
+.mobile-admin-logout {
+  display: none;
 }
 .management-header > div > span {
   color: var(--gold-dark);
@@ -3707,6 +3888,26 @@ h3 {
   .management-header {
     min-height: 140px;
     padding-top: 28px;
+  }
+  .management-header > div:first-child {
+    padding-right: 54px;
+  }
+  .mobile-admin-logout {
+    width: 42px;
+    height: 42px;
+    position: absolute;
+    top: 28px;
+    right: 0;
+    display: grid;
+    place-items: center;
+    border: 1px solid #e1bcc1;
+    border-radius: 7px;
+    color: #982739;
+    background: #fff4f5;
+    cursor: pointer;
+  }
+  .mobile-admin-logout svg {
+    width: 18px;
   }
   .management-grid {
     grid-template-columns: 1fr;
