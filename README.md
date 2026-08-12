@@ -108,13 +108,14 @@ The API temporarily supports the legacy `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USE
 | `VITE_API_URL` | Deployment only | API origin when frontend and API use different origins |
 | `SEED_ADMIN_EMAIL` | No | Development organizer account email |
 | `SEED_ADMIN_PASSWORD` | No | Development organizer account password |
-| `REDIS_URL` | Future | Redis connection URL |
+| `REDIS_URL` | Production | Redis URL for sessions, USSD state, and distributed rate limits |
 | `PAYSTACK_PUBLIC_KEY` | Integration | Paystack public key |
 | `PAYSTACK_SECRET_KEY` | Integration | Paystack secret key |
 | `PAYSTACK_WEBHOOK_SECRET` | Integration | Paystack webhook verification secret |
 | `ARKESEL_API_KEY` | Integration | Arkesel API key |
 | `ARKESEL_SENDER_ID` | Integration | Arkesel SMS sender ID |
-| `ARKESEL_USSD_CONFIG` | Integration | Arkesel USSD configuration |
+| `ARKESEL_USSD_SECRET` | Production | Random USSD callback secret of at least 24 characters |
+| `WEBHOOK_RETRY_INTERVAL_MS` | No | Paystack retry-worker interval; defaults to 30 seconds |
 | `STORAGE_ACCESS_KEY` | Uploads | Object-storage access key |
 | `STORAGE_SECRET_KEY` | Uploads | Object-storage secret key |
 | `STORAGE_BUCKET` | Uploads | Object-storage bucket |
@@ -172,6 +173,8 @@ These credentials are only for local development. Set unique `SEED_ADMIN_EMAIL` 
 - `/dashboard/categories` - category management
 - `/dashboard/candidates` - candidate management
 - `/dashboard/payments` - payment ledger
+- `/dashboard/settings` - recovery phone and organizer MFA settings
+- `/dashboard/audit-logs` - owner-only administrative and security activity
 
 Unauthenticated access to secured organizer pages displays the organizer login form.
 
@@ -200,13 +203,13 @@ The vote-order endpoint accepts candidate ID, quantity, phone number, and `WEB` 
 Configure the Arkesel USSD callback as:
 
 ```text
-POST https://your-api.example.com/api/v1/ussd/arkesel
+POST https://your-api.example.com/api/v1/ussd/arkesel?token=YOUR_CALLBACK_SECRET
 Content-Type: application/json
 ```
 
 The route implements: main menu, nominee-code lookup, vote quantity, price preview, acceptance, Paystack Ghana mobile-money authorization, and asynchronous webhook crediting. TomaMe never collects the customer's Mobile Money PIN; the carrier/Paystack authorization prompt handles it.
 
-Arkesel request fields are `sessionID`, `userID`, `newSession`, `msisdn`, `userData`, and `network`. Development sessions use an expiring in-memory store. Configure Redis-backed session storage before running multiple API instances in production.
+The token must equal `ARKESEL_USSD_SECRET`. An edge proxy that injects the `x-arkesel-secret` header is preferable when available. Arkesel request fields are `sessionID`, `userID`, `newSession`, `msisdn`, `userData`, and `network`. Redis stores sessions with a two-minute TTL; development alone can use the in-memory fallback.
 
 ### Organizer password recovery
 
@@ -227,6 +230,13 @@ https://your-api.example.com/api/webhooks/paystack
 ```
 
 The webhook validates `x-paystack-signature` against the exact raw body, verifies the transaction through Paystack, checks amount and currency against the vote order, and credits votes idempotently.
+Failed processing is persisted and retried with exponential backoff up to eight attempts. Every retry verifies the transaction directly with Paystack.
+
+### Organizer MFA and secrets
+
+Organizers can enable SMS MFA from the dashboard after registering a trusted phone. Correct credentials create a ten-minute, five-attempt challenge, and a session is issued only after OTP verification. Logout revokes the Redis session immediately. Password resets increment the account session version and invalidate all existing sessions.
+
+Production secrets can be mounted through `*_FILE`, including `SESSION_SECRET_FILE`, `DATABASE_URL_FILE`, `REDIS_URL_FILE`, `PAYSTACK_SECRET_KEY_FILE`, and `ARKESEL_API_KEY_FILE`. Configure either the direct value or its file variant. See [SECURITY.md](SECURITY.md) for the focused penetration-test scope.
 
 ### Authentication
 
@@ -254,6 +264,11 @@ The Prisma schema is in `prisma/schema.prisma` and includes:
 - Vote orders and payments
 - Vote transactions and adjustments
 - Audit and webhook logs
+
+Audit logs remain active for 90 days. A daily retention worker then archives them,
+keeps archived records for one year, and permanently deletes records after that
+archive period. Organization owners can switch between active and archived logs
+from the dashboard audit-log filters.
 
 Useful commands:
 
@@ -344,12 +359,9 @@ views/                    Original UI design references
 
 The following work is intentionally not represented as production-ready:
 
-- Production Paystack account validation and live webhook deployment
-- Arkesel USSD and SMS provider implementations
-- Redis session storage and BullMQ jobs
+- External penetration testing and production Paystack/live webhook validation
 - Object-storage uploads for event and candidate images
 - Event draft persistence through the authenticated API
-- Password reset and two-factor authentication
 - Settlements, exports, and Super Admin interfaces
 - Complete browser and integration test coverage
 

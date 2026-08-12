@@ -940,12 +940,13 @@ h3 {
   background: #f5f6f7;
 }
 .admin-sidebar {
-  min-height: 100vh;
+  height: 100vh;
   position: sticky;
   top: 0;
   align-self: start;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
   padding: 23px 14px 18px;
   border-right: 1px solid var(--line);
   background: #fff;
@@ -963,6 +964,7 @@ h3 {
 .admin-sidebar nav {
   display: flex;
   flex-direction: column;
+  flex: none;
   gap: 4px;
 }
 .admin-sidebar nav a {
@@ -3870,6 +3872,55 @@ h3 {
   border-radius: 6px;
   background: white;
 }
+.settings-sections {
+  width: min(820px, 100%);
+}
+.audit-toolbar {
+  grid-template-columns: minmax(220px, 1fr) 190px 190px;
+}
+.audit-table td:first-child strong {
+  color: #24292d;
+  font-size: 11px;
+}
+.audit-detail dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 18px;
+}
+.audit-detail dl div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.audit-detail dt,
+.audit-detail h3 {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.audit-detail dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+}
+.audit-detail section + section {
+  margin-top: 14px;
+}
+.audit-detail pre {
+  max-height: 240px;
+  overflow: auto;
+  margin: 6px 0 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f7f8f8;
+  color: #30363a;
+  font-size: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 .recovery-phone-panel > div {
   min-width: 180px;
   display: flex;
@@ -3999,10 +4050,13 @@ h3 {
     bottom: 0;
     height: 68px;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     border-top: 1px solid var(--line);
     background: rgba(255, 255, 255, 0.97);
     backdrop-filter: blur(14px);
+  }
+  .mobile-admin-nav.has-audit {
+    grid-template-columns: repeat(6, 1fr);
   }
   .mobile-admin-nav a {
     display: flex;
@@ -4023,6 +4077,12 @@ h3 {
   }
 }
 @media (max-width: 560px) {
+  .audit-toolbar {
+    grid-template-columns: 1fr;
+  }
+  .audit-detail dl {
+    grid-template-columns: 1fr;
+  }
   .recovery-phone-panel {
     align-items: stretch;
     flex-direction: column;

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Archive,
+  ClipboardList,
   CalendarDays,
   CheckCircle2,
   ChevronDown,
@@ -18,6 +19,7 @@ import {
   Plus,
   ReceiptText,
   Search,
+  Settings,
   Tag,
   Users,
   X,
@@ -60,10 +62,19 @@ function LoginPage({ onLogin }) {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       });
-      onLogin(session);
+      if (session.mfaRequired) {
+        setChallengeId(session.challengeId); setOtp(''); setMode('mfa'); setState({ loading: false, error: '' });
+      } else await onLogin(session);
     } catch (error) {
       setState({ loading: false, error: error.message });
     }
+  }
+  async function confirmMfa(event) {
+    event.preventDefault(); setState({ loading: true, error: '' });
+    try {
+      const session = await api('/api/v1/auth/login/mfa', { method: 'POST', body: JSON.stringify({ challengeId, otp }) });
+      await onLogin(session);
+    } catch (error) { setState({ loading: false, error: error.message }); }
   }
   async function requestReset(event) {
     event.preventDefault(); setState({ loading: true, error: '' });
@@ -81,6 +92,16 @@ function LoginPage({ onLogin }) {
       setPassword(''); setConfirmPassword(''); setOtp(''); setMode('login'); setState({ loading: false, error: '' });
     } catch (error) { setState({ loading: false, error: error.message }); }
   }
+  if (mode === 'mfa') return (
+    <div className="organizer-login"><Link to="/"><img src={logo} alt="TomaMe" /></Link>
+      <form onSubmit={confirmMfa}><span className="eyebrow">Two-factor authentication</span><h1>Verify your sign-in.</h1><p>Enter the six-digit code sent to your trusted phone.</p>
+        <label>Six-digit OTP<input type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength="6" value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, ''))} required /></label>
+        {state.error && <div className="admin-form-error" role="alert">{state.error}</div>}
+        <button className="primary-action" disabled={state.loading} type="submit">{state.loading ? <LoaderCircle className="spin" /> : 'Verify and sign in'}</button>
+        <button className="login-text-action" type="button" onClick={() => { setMode('login'); setOtp(''); setState({ loading: false, error: '' }); }}>Back to sign in</button>
+      </form>
+    </div>
+  );
   if (mode !== 'login') return (
     <div className="organizer-login"><Link to="/"><img src={logo} alt="TomaMe" /></Link>
       <form onSubmit={mode === 'request' ? requestReset : confirmReset}>
@@ -184,6 +205,14 @@ function AdminLayout({ session, title, description, action, children }) {
             <ReceiptText />
             Payments
           </NavLink>
+          <NavLink to="/dashboard/settings">
+            <Settings />
+            Settings
+          </NavLink>
+          {session.role === 'ORGANIZATION_OWNER' && <NavLink to="/dashboard/audit-logs">
+            <ClipboardList />
+            Audit logs
+          </NavLink>}
         </nav>
         <div className="admin-profile">
           <span>
@@ -221,7 +250,7 @@ function AdminLayout({ session, title, description, action, children }) {
         </header>
         {children}
       </div>
-      <nav className="mobile-admin-nav" aria-label="Organizer navigation">
+      <nav className={`mobile-admin-nav ${session.role === 'ORGANIZATION_OWNER' ? 'has-audit' : ''}`} aria-label="Organizer navigation">
         <NavLink to="/dashboard/events">
           <CalendarDays />
           <span>Events</span>
@@ -238,6 +267,14 @@ function AdminLayout({ session, title, description, action, children }) {
           <ReceiptText />
           <span>Payments</span>
         </NavLink>
+        <NavLink to="/dashboard/settings">
+          <Settings />
+          <span>Settings</span>
+        </NavLink>
+        {session.role === 'ORGANIZATION_OWNER' && <NavLink to="/dashboard/audit-logs">
+          <ClipboardList />
+          <span>Audit</span>
+        </NavLink>}
       </nav>
     </div>
   );
@@ -246,6 +283,15 @@ function AdminLayout({ session, title, description, action, children }) {
 function OrganizerGate({ page }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const completeLogin = useCallback(async () => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setLoading(true);
+    try {
+      setSession(await api('/api/v1/auth/me'));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
   useEffect(() => {
     api('/api/v1/auth/me')
       .then(setSession)
@@ -259,10 +305,12 @@ function OrganizerGate({ page }) {
         Checking access...
       </div>
     );
-  if (!session) return <LoginPage onLogin={setSession} />;
+  if (!session) return <LoginPage onLogin={completeLogin} />;
   if (page === 'categories') return <CategoriesPage session={session} />;
   if (page === 'candidates') return <CandidatesPage session={session} />;
   if (page === 'payments') return <PaymentsPage session={session} />;
+  if (page === 'settings') return <SettingsPage session={session} />;
+  if (page === 'audit-logs') return <AuditLogsPage session={session} />;
   if (page === 'events') return <OrganizerOverview session={session} eventManagement />;
   if (page === 'create-event') return <CreateEventPage />;
   return <OrganizerOverview session={session} />;
@@ -341,7 +389,6 @@ function OrganizerOverview({ session, eventManagement = false }) {
 
   return (
     <AdminLayout session={session} title={eventManagement ? 'Events' : 'Overview'} description={eventManagement ? 'Manage event details, publishing assets, and voting availability.' : 'Control voting availability across your events.'} action={eventManagement ? <Link className="primary-action" to="/dashboard/events/new"><Plus /> New event</Link> : undefined}>
-      <RecoveryPhonePanel initialPhone={session.user.phone || ''} />
       {state.error && <div className="admin-alert">{state.error}</div>}
       {state.loading ? <AdminLoading /> : state.events.length ? (
         <div className="event-control-list">
@@ -377,7 +424,7 @@ function OrganizerOverview({ session, eventManagement = false }) {
   );
 }
 
-function RecoveryPhonePanel({ initialPhone }) {
+function RecoveryPhonePanel({ initialPhone, onPhoneUpdated }) {
   const [open, setOpen] = useState(!initialPhone);
   const [phone, setPhone] = useState(initialPhone);
   const [password, setPassword] = useState('');
@@ -386,7 +433,7 @@ function RecoveryPhonePanel({ initialPhone }) {
     event.preventDefault(); setState({ loading: true, error: '', saved: false });
     try {
       const updated = await api('/api/v1/auth/me/phone', { method: 'PATCH', body: JSON.stringify({ phone, password }) });
-      setPhone(updated.phone); setPassword(''); setOpen(false); setState({ loading: false, error: '', saved: true });
+      setPhone(updated.phone); onPhoneUpdated?.(updated.phone); setPassword(''); setOpen(false); setState({ loading: false, error: '', saved: true });
     } catch (error) { setState({ loading: false, error: error.message, saved: false }); }
   }
   return <section className="recovery-phone-panel">
@@ -394,6 +441,54 @@ function RecoveryPhonePanel({ initialPhone }) {
     {!open && <button className="secondary-action" type="button" onClick={() => setOpen(true)}><Pencil /> {phone ? 'Change' : 'Add phone'}</button>}
     {open && <form onSubmit={submit}><input type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="024 123 4567" required /><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Current password" required /><button className="primary-action" type="submit" disabled={state.loading}>{state.loading ? <LoaderCircle className="spin" /> : 'Save phone'}</button>{phone && <button className="secondary-action" type="button" onClick={() => setOpen(false)}>Cancel</button>}</form>}
     {state.error && <span className="recovery-error">{state.error}</span>}{state.saved && <span className="recovery-saved">Recovery phone updated.</span>}
+  </section>;
+}
+
+function SettingsPage({ session }) {
+  const [phone, setPhone] = useState(session.user.phone || '');
+  return <AdminLayout session={session} title="Settings" description="Manage account recovery and organizer sign-in security.">
+    <div className="settings-sections">
+      <RecoveryPhonePanel initialPhone={phone} onPhoneUpdated={setPhone} />
+      <MfaPanel enabledInitially={Boolean(session.user.twoFactorEnabled)} hasPhone={Boolean(phone)} />
+    </div>
+  </AdminLayout>;
+}
+
+function MfaPanel({ enabledInitially, hasPhone }) {
+  const [enabled, setEnabled] = useState(enabledInitially);
+  const [mode, setMode] = useState('idle');
+  const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
+  const [challengeId, setChallengeId] = useState('');
+  const [state, setState] = useState({ loading: false, error: '' });
+  async function begin(event) {
+    event.preventDefault(); setState({ loading: true, error: '' });
+    try {
+      const data = await api('/api/v1/auth/mfa/setup', { method: 'POST', body: JSON.stringify({ password }) });
+      setChallengeId(data.challengeId); setPassword(''); setMode('verify'); setState({ loading: false, error: '' });
+    } catch (error) { setState({ loading: false, error: error.message }); }
+  }
+  async function enable(event) {
+    event.preventDefault(); setState({ loading: true, error: '' });
+    try {
+      await api('/api/v1/auth/mfa/enable', { method: 'POST', body: JSON.stringify({ challengeId, otp }) });
+      setEnabled(true); setMode('idle'); setOtp(''); setState({ loading: false, error: '' });
+    } catch (error) { setState({ loading: false, error: error.message }); }
+  }
+  async function disable(event) {
+    event.preventDefault(); setState({ loading: true, error: '' });
+    try {
+      await api('/api/v1/auth/mfa', { method: 'DELETE', body: JSON.stringify({ password }) });
+      window.location.assign('/organizers');
+    } catch (error) { setState({ loading: false, error: error.message }); }
+  }
+  return <section className="recovery-phone-panel">
+    <div><small>Account security</small><strong>{enabled ? 'Two-factor authentication enabled' : 'Action required: enable two-factor authentication'}</strong></div>
+    {mode === 'idle' && <button className={enabled ? 'secondary-action' : 'primary-action'} type="button" disabled={!hasPhone} onClick={() => setMode(enabled ? 'disable' : 'password')}>{enabled ? 'Disable MFA' : 'Enable MFA now'}</button>}
+    {mode === 'password' && <form onSubmit={begin}><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Current password" required /><button className="primary-action" disabled={state.loading}>Send code</button><button className="secondary-action" type="button" onClick={() => setMode('idle')}>Cancel</button></form>}
+    {mode === 'verify' && <form onSubmit={enable}><input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength="6" value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, ''))} placeholder="Six-digit code" required /><button className="primary-action" disabled={state.loading}>Verify</button></form>}
+    {mode === 'disable' && <form onSubmit={disable}><input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Current password" required /><button className="suspend-action" disabled={state.loading}>Disable MFA</button><button className="secondary-action" type="button" onClick={() => setMode('idle')}>Cancel</button></form>}
+    {!hasPhone && <span className="recovery-error">Add a trusted recovery phone before enabling MFA.</span>}{state.error && <span className="recovery-error">{state.error}</span>}
   </section>;
 }
 
@@ -1218,6 +1313,70 @@ export function CandidatesRoute() {
 }
 export function PaymentsRoute() {
   return <OrganizerGate page="payments" />;
+}
+
+function readableAction(value) {
+  return value.toLowerCase().replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function safeAuditValue(value) {
+  const blocked = /password|secret|token|otp|authorization|cookie|key/i;
+  function redact(item) {
+    if (Array.isArray(item)) return item.map(redact);
+    if (item && typeof item === 'object') return Object.fromEntries(Object.entries(item).map(([key, entry]) => [key, blocked.test(key) ? '[REDACTED]' : redact(entry)]));
+    return item;
+  }
+  return value == null ? null : redact(value);
+}
+
+function AuditLogsPage({ session }) {
+  const [search, setSearch] = useState('');
+  const [action, setAction] = useState('');
+  const [resourceType, setResourceType] = useState('');
+  const [retention, setRetention] = useState('active');
+  const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState(null);
+  const [data, setData] = useState({ items: [], filters: { actions: [], resourceTypes: [] }, pagination: { page: 1, total: 0, pageCount: 0 } });
+  const [state, setState] = useState({ loading: true, error: '' });
+  const load = useCallback(() => {
+    api(`/api/v1/organizer/audit-logs?search=${encodeURIComponent(search)}&page=${page}&retention=${retention}${action ? `&action=${encodeURIComponent(action)}` : ''}${resourceType ? `&resourceType=${encodeURIComponent(resourceType)}` : ''}`)
+      .then((result) => { setData(result); setState({ loading: false, error: '' }); })
+      .catch((error) => setState({ loading: false, error: error.message }));
+  }, [action, page, resourceType, retention, search]);
+  useEffect(load, [load]);
+  return <AdminLayout session={session} title="Audit logs" description="Review security-sensitive and administrative activity for your organization.">
+    <div className="management-toolbar audit-toolbar">
+      <label className="admin-search"><Search /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Action, resource, or actor" /></label>
+      <label>Action<select value={action} onChange={(event) => { setAction(event.target.value); setPage(1); }}><option value="">All actions</option>{data.filters.actions.map((item) => <option key={item} value={item}>{readableAction(item)}</option>)}</select><ChevronDown /></label>
+      <label>Resource<select value={resourceType} onChange={(event) => { setResourceType(event.target.value); setPage(1); }}><option value="">All resources</option>{data.filters.resourceTypes.map((item) => <option key={item} value={item}>{item}</option>)}</select><ChevronDown /></label>
+      <label>Retention<select value={retention} onChange={(event) => { setRetention(event.target.value); setPage(1); }}><option value="active">Active</option><option value="archived">Archived</option><option value="all">All records</option></select><ChevronDown /></label>
+    </div>
+    {state.error && <div className="admin-alert">{state.error}</div>}
+    {state.loading ? <AdminLoading /> : data.items.length ? <div className="candidate-table-wrap">
+      <table className="admin-table audit-table"><thead><tr><th>Activity</th><th>Actor</th><th>Resource</th><th>Source</th><th>Date</th><th><span className="sr-only">View</span></th></tr></thead>
+        <tbody>{data.items.map((item) => <tr key={item.id}>
+          <td><strong>{readableAction(item.action)}</strong></td>
+          <td>{item.user?.name || 'System'}<small>{item.user?.email || 'Automated process'}</small></td>
+          <td>{item.resourceType}<small>{item.resourceId}</small></td>
+          <td>{item.ipAddress || 'Not recorded'}</td>
+          <td>{new Date(item.createdAt).toLocaleString()}</td>
+          <td><button className="icon-action" type="button" title="View audit entry" onClick={() => setSelected(item)}><Eye /></button></td>
+        </tr>)}</tbody>
+      </table>
+      <div className="payment-pagination"><span>Page {data.pagination.page} of {data.pagination.pageCount}</span><div><button type="button" title="Previous page" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}><ChevronLeft /></button><button type="button" title="Next page" disabled={page >= data.pagination.pageCount} onClick={() => setPage((value) => value + 1)}><ChevronRight /></button></div></div>
+    </div> : <AdminEmpty icon={ClipboardList} title="No audit activity found" text="Administrative and security events will appear here." />}
+    {selected && <Dialog title="Audit entry" onClose={() => setSelected(null)}><div className="audit-detail">
+      <dl><div><dt>Action</dt><dd>{readableAction(selected.action)}</dd></div><div><dt>Actor</dt><dd>{selected.user?.name || 'System'}</dd></div><div><dt>Resource</dt><dd>{selected.resourceType} / {selected.resourceId}</dd></div><div><dt>IP address</dt><dd>{selected.ipAddress || 'Not recorded'}</dd></div><div><dt>Date</dt><dd>{new Date(selected.createdAt).toLocaleString()}</dd></div>{selected.archivedAt && <div><dt>Archived</dt><dd>{new Date(selected.archivedAt).toLocaleString()}</dd></div>}</dl>
+      {selected.oldValue != null && <section><h3>Previous value</h3><pre>{JSON.stringify(safeAuditValue(selected.oldValue), null, 2)}</pre></section>}
+      {selected.newValue != null && <section><h3>New value</h3><pre>{JSON.stringify(safeAuditValue(selected.newValue), null, 2)}</pre></section>}
+    </div></Dialog>}
+  </AdminLayout>;
+}
+export function SettingsRoute() {
+  return <OrganizerGate page="settings" />;
+}
+export function AuditLogsRoute() {
+  return <OrganizerGate page="audit-logs" />;
 }
 export function DashboardRoute() {
   return <OrganizerGate page="overview" />;

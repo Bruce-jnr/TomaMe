@@ -10,25 +10,11 @@ import { paystackProvider } from '../payments/paystack.provider.js';
 import { createVoteOrder } from '../services/vote-order.service.js';
 import { creditVerifiedPayment } from '../services/vote-credit.service.js';
 import type { ArkeselRequest } from './arkesel.js';
-
-type Step = 'MAIN_MENU' | 'ENTER_CODE' | 'ENTER_QUANTITY' | 'CONFIRM_ORDER';
-type Session = {
-  step: Step;
-  phone: string;
-  network: string;
-  candidateId?: string;
-  candidateName?: string;
-  categoryName?: string;
-  quantity?: number;
-  amount?: number;
-  expiresAt: number;
-};
-const sessions = new Map<string, Session>();
-const SESSION_TTL_MS = 2 * 60 * 1000;
-
-function save(id: string, session: Omit<Session, 'expiresAt'>) {
-  sessions.set(id, { ...session, expiresAt: Date.now() + SESSION_TTL_MS });
-}
+import {
+  deleteUssdSession,
+  getUssdSession,
+  saveUssdSession,
+} from './session-store.js';
 function providerFor(network: string): 'mtn' | 'atl' | 'vod' {
   const value = network.toLowerCase();
   if (value.includes('mtn')) return 'mtn';
@@ -51,7 +37,7 @@ export async function handleUssd(
 ): Promise<{ message: string; continueSession: boolean }> {
   const phone = normalizeGhanaPhone(request.msisdn);
   if (request.newSession) {
-    save(request.sessionID, {
+    await saveUssdSession(request.sessionID, {
       step: 'MAIN_MENU',
       phone,
       network: request.network,
@@ -61,9 +47,8 @@ export async function handleUssd(
       continueSession: true,
     };
   }
-  const session = sessions.get(request.sessionID);
-  if (!session || session.expiresAt <= Date.now()) {
-    sessions.delete(request.sessionID);
+  const session = await getUssdSession(request.sessionID);
+  if (!session) {
     return {
       message: 'Session expired. Try Again',
       continueSession: false,
@@ -72,14 +57,17 @@ export async function handleUssd(
   const input = request.userData.trim();
   if (session.step === 'MAIN_MENU') {
     if (input !== '1') {
-      sessions.delete(request.sessionID);
+      await deleteUssdSession(request.sessionID);
       return {
         message:
           input === '0' ? 'Thank you for using TomaMe.' : 'Invalid option.',
         continueSession: false,
       };
     }
-    save(request.sessionID, { ...session, step: 'ENTER_CODE' });
+    await saveUssdSession(request.sessionID, {
+      ...session,
+      step: 'ENTER_CODE',
+    });
     return { message: 'Enter nominee code:', continueSession: true };
   }
   if (session.step === 'ENTER_CODE') {
@@ -101,7 +89,7 @@ export async function handleUssd(
         message: 'USSD voting is unavailable for this event.',
         continueSession: false,
       };
-    save(request.sessionID, {
+    await saveUssdSession(request.sessionID, {
       ...session,
       step: 'ENTER_QUANTITY',
       candidateId: candidate.id,
@@ -132,7 +120,7 @@ export async function handleUssd(
     const unitPrice =
       candidate.category.votePriceOverride ?? candidate.event.defaultVotePrice;
     const amount = quantity * unitPrice;
-    save(request.sessionID, {
+    await saveUssdSession(request.sessionID, {
       ...session,
       step: 'CONFIRM_ORDER',
       quantity,
@@ -144,7 +132,7 @@ export async function handleUssd(
     };
   }
   if (input !== '1') {
-    sessions.delete(request.sessionID);
+    await deleteUssdSession(request.sessionID);
     return { message: 'Vote cancelled.', continueSession: false };
   }
   const order = await createVoteOrder({
@@ -178,7 +166,7 @@ export async function handleUssd(
     where: { id: order.id },
     data: { paymentStatus: PaymentStatus.PROCESSING },
   });
-  sessions.delete(request.sessionID);
+  await deleteUssdSession(request.sessionID);
   if (charge.status === 'success') {
     const verified = await paystackProvider.verifyPayment(
       order.paymentReference,

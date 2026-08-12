@@ -3,7 +3,7 @@ import { PaymentProviderName } from '@prisma/client';
 import { Router } from 'express';
 import { prisma } from '../db/prisma.js';
 import { paystackProvider } from '../payments/paystack.provider.js';
-import { creditVerifiedPayment } from '../services/vote-credit.service.js';
+import { processPaystackWebhookLog, scheduleWebhookRetry } from '../services/webhook-processing.service.js';
 
 export const webhookRouter = Router();
 
@@ -25,12 +25,10 @@ webhookRouter.post('/paystack', async (req, res, next) => {
     return;
   }
   try {
-    const verified = await paystackProvider.verifyPayment(event.data.reference);
-    await creditVerifiedPayment(PaymentProviderName.PAYSTACK, verified);
-    await prisma.webhookLog.update({ where: { id: log.id }, data: { processed: true, processingResult: 'VOTE_CREDITED', processedAt: new Date() } });
+    await processPaystackWebhookLog(log.id);
     res.sendStatus(200);
   } catch (error) {
-    await prisma.webhookLog.update({ where: { id: log.id }, data: { processingResult: 'PROCESSING_FAILED' } });
-    next(error);
+    await scheduleWebhookRetry(log.id, 1, error);
+    res.sendStatus(200);
   }
 });

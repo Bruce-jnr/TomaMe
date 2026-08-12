@@ -8,6 +8,10 @@ export const notFoundHandler: RequestHandler = (req, _res, next) => {
 };
 
 export const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
+  if (error instanceof SyntaxError && 'status' in error && error.status === 400) {
+    res.status(400).json({ success: false, error: { code: 'INVALID_JSON', message: 'Request body must contain valid JSON.' } });
+    return;
+  }
   if (error instanceof ZodError) {
     res.status(400).json({
       success: false,

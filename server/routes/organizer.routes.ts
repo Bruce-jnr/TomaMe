@@ -336,3 +336,55 @@ organizerRouter.get('/payments/:id', requireRoles(OrganizationRole.ORGANIZATION_
     res.json({ success: true, data: { ...payment, order: { ...payment.order, voterPhone: payment.order.voterPhone.replace(/.(?=.{4})/g, '•'), voterEmail: payment.order.voterEmail ? 'Provided' : null } } });
   } catch (error) { next(error); }
 });
+
+organizerRouter.get('/audit-logs', requireRoles(OrganizationRole.ORGANIZATION_OWNER), async (req, res, next) => {
+  try {
+    const auth = (req as AuthenticatedRequest).auth;
+    const query = z.object({
+      search: z.string().trim().max(100).default(''),
+      action: z.string().trim().max(100).optional(),
+      resourceType: z.string().trim().max(100).optional(),
+      retention: z.enum(['active', 'archived', 'all']).default('active'),
+      from: z.coerce.date().optional(),
+      to: z.coerce.date().optional(),
+      page: z.coerce.number().int().positive().default(1),
+      pageSize: z.coerce.number().int().min(10).max(100).default(25),
+    }).parse(req.query);
+    const to = query.to ? new Date(query.to) : undefined;
+    if (to) to.setUTCHours(23, 59, 59, 999);
+    const retentionWhere: Prisma.AuditLogWhereInput = query.retention === 'active'
+      ? { archivedAt: null }
+      : query.retention === 'archived' ? { archivedAt: { not: null } } : {};
+    const where: Prisma.AuditLogWhereInput = {
+      organizationId: auth.organizationId,
+      ...retentionWhere,
+      ...(query.action ? { action: query.action } : {}),
+      ...(query.resourceType ? { resourceType: query.resourceType } : {}),
+      ...(query.from || to ? { createdAt: { ...(query.from ? { gte: query.from } : {}), ...(to ? { lte: to } : {}) } } : {}),
+      ...(query.search ? { OR: [
+        { action: { contains: query.search, mode: 'insensitive' } },
+        { resourceType: { contains: query.search, mode: 'insensitive' } },
+        { resourceId: { contains: query.search, mode: 'insensitive' } },
+        { user: { is: { name: { contains: query.search, mode: 'insensitive' } } } },
+        { user: { is: { email: { contains: query.search, mode: 'insensitive' } } } },
+      ] } : {}),
+    };
+    const [items, total, actions, resourceTypes] = await Promise.all([
+      prisma.auditLog.findMany({
+        where,
+        select: { id: true, action: true, resourceType: true, resourceId: true, oldValue: true, newValue: true, ipAddress: true, userAgent: true, createdAt: true, archivedAt: true, user: { select: { id: true, name: true, email: true } } },
+        orderBy: { createdAt: 'desc' },
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+      }),
+      prisma.auditLog.count({ where }),
+      prisma.auditLog.findMany({ where: { organizationId: auth.organizationId, ...retentionWhere }, distinct: ['action'], select: { action: true }, orderBy: { action: 'asc' } }),
+      prisma.auditLog.findMany({ where: { organizationId: auth.organizationId, ...retentionWhere }, distinct: ['resourceType'], select: { resourceType: true }, orderBy: { resourceType: 'asc' } }),
+    ]);
+    res.json({ success: true, data: {
+      items,
+      filters: { actions: actions.map((item) => item.action), resourceTypes: resourceTypes.map((item) => item.resourceType) },
+      pagination: { page: query.page, pageSize: query.pageSize, total, pageCount: Math.ceil(total / query.pageSize) },
+    } });
+  } catch (error) { next(error); }
+});

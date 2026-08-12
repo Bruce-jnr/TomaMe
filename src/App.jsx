@@ -35,11 +35,13 @@ import logo from "./assets/logo.png";
 import organizerHero from "./assets/organizer-hero.jpg";
 import {
   CandidatesRoute,
+  AuditLogsRoute,
   CategoriesRoute,
   CreateEventRoute,
   DashboardRoute,
   EventsRoute,
   PaymentsRoute,
+  SettingsRoute,
 } from "./pages/OrganizerAdminPages.jsx";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
@@ -1424,6 +1426,8 @@ function App() {
         <Route path="/dashboard/categories" element={<CategoriesRoute />} />
         <Route path="/dashboard/candidates" element={<CandidatesRoute />} />
         <Route path="/dashboard/payments" element={<PaymentsRoute />} />
+        <Route path="/dashboard/settings" element={<SettingsRoute />} />
+        <Route path="/dashboard/audit-logs" element={<AuditLogsRoute />} />
         <Route path="/dashboard/transactions" element={<PaymentsRoute />} />
         <Route path="*" element={<PlaceholderPage />} />
       </Routes>

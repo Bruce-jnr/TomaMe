@@ -52,15 +52,14 @@ async function request(path: string, body: unknown) {
   }
 }
 
-export async function sendPasswordResetOtp(phone: string) {
+async function sendOtp(phone: string, message: string) {
   const { senderId } = configuration();
   const response = generateResponseSchema.parse(
     await request('/api/otp/generate', {
       expiry: 10,
       length: 6,
       medium: 'sms',
-      message:
-        'Your TomaMe password reset code is %otp_code%. It expires in 10 minutes.',
+      message,
       number: phone,
       sender_id: senderId,
       type: 'numeric',
@@ -74,9 +73,25 @@ export async function sendPasswordResetOtp(phone: string) {
     );
 }
 
+export function sendPasswordResetOtp(phone: string) {
+  return sendOtp(
+    phone,
+    'Your TomaMe password reset code is %otp_code%. It expires in 10 minutes.',
+  );
+}
+
+export function sendLoginOtp(phone: string) {
+  return sendOtp(
+    phone,
+    'Your TomaMe organizer sign-in code is %otp_code%. It expires in 10 minutes.',
+  );
+}
+
 export async function verifyPasswordResetOtp(phone: string, code: string) {
   const response = verifyResponseSchema.parse(
     await request('/api/otp/verify', { number: phone, code }),
   );
   return String(response.code) === '1100';
 }
+
+export const verifyLoginOtp = verifyPasswordResetOtp;

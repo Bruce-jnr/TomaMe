@@ -102,11 +102,27 @@ model User {
   phone        String?                  @unique
   globalRole   GlobalRole               @default(USER)
   twoFactorEnabled Boolean              @default(false)
+  sessionVersion Int                    @default(0)
   memberships OrganizationMembership[]
   auditLogs    AuditLog[]
   passwordResetChallenges PasswordResetChallenge[]
+  loginChallenges LoginChallenge[]
   createdAt    DateTime                 @default(now())
   updatedAt    DateTime                 @updatedAt
+}
+
+model LoginChallenge {
+  id         String    @id @default(cuid())
+  userId     String
+  phone      String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([expiresAt, consumedAt])
 }
 
 model PasswordResetChallenge {
@@ -361,11 +377,13 @@ model AuditLog {
   newValue       Json?
   ipAddress      String?
   userAgent      String?
+  archivedAt     DateTime?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   createdAt      DateTime      @default(now())
 
   @@index([organizationId, createdAt])
+  @@index([archivedAt])
   @@index([resourceType, resourceId])
 }
 
@@ -380,7 +398,11 @@ model WebhookLog {
   payloadDigest    String?
   receivedAt       DateTime            @default(now())
   processedAt      DateTime?
+  attempts         Int                 @default(0)
+  nextAttemptAt    DateTime?
+  lastError        String?
 
   @@index([provider, reference])
   @@index([processed, receivedAt])
+  @@index([nextAttemptAt, processed])
 }

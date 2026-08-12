@@ -3,13 +3,14 @@ import { MembershipStatus } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
-import { createSession, SESSION_COOKIE } from '../auth/session.js';
+import { createSession, revokeSession, SESSION_COOKIE } from '../auth/session.js';
 import { env } from '../config/env.js';
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../errors/app-error.js';
 import { type AuthenticatedRequest, requireAuth } from '../middleware/auth.js';
 import { normalizeGhanaPhone } from '../domain/phone.js';
 import { sendPasswordResetOtp, verifyPasswordResetOtp } from '../messaging/arkesel-otp.provider.js';
+import { sendLoginOtp, verifyLoginOtp } from '../messaging/arkesel-otp.provider.js';
 
 export const authRouter = Router();
 const loginSchema = z.object({ email: z.string().email(), password: z.string().min(8).max(200) });
@@ -28,12 +29,37 @@ authRouter.post('/login', async (req, res, next) => {
     }
     const membership = user.memberships[0];
     if (!membership) throw new AppError(403, 'NO_ORGANIZATION_ACCESS', 'No active organization membership was found.');
-    const token = await createSession({ userId: user.id, organizationId: membership.organizationId, role: membership.role });
-    res.cookie(SESSION_COOKIE, token, cookieOptions).json({ success: true, data: { user: { id: user.id, name: user.name, email: user.email, phone: user.phone }, organization: { id: membership.organization.id, name: membership.organization.name }, role: membership.role } });
+    if (user.twoFactorEnabled) {
+      if (!user.phone) throw new AppError(409, 'MFA_PHONE_REQUIRED', 'A recovery phone is required for MFA.');
+      await prisma.loginChallenge.updateMany({ where: { userId: user.id, consumedAt: null }, data: { consumedAt: new Date() } });
+      const challenge = await prisma.loginChallenge.create({ data: { userId: user.id, phone: user.phone, expiresAt: new Date(Date.now() + 10 * 60_000) } });
+      try { await sendLoginOtp(user.phone); }
+      catch (error) { await prisma.loginChallenge.delete({ where: { id: challenge.id } }); throw error; }
+      res.json({ success: true, data: { mfaRequired: true, challengeId: challenge.id } });
+      return;
+    }
+    const token = await createSession({ userId: user.id, organizationId: membership.organizationId, role: membership.role, sessionVersion: user.sessionVersion });
+    res.cookie(SESSION_COOKIE, token, cookieOptions).json({ success: true, data: { user: { id: user.id, name: user.name, email: user.email, phone: user.phone, twoFactorEnabled: user.twoFactorEnabled }, organization: { id: membership.organization.id, name: membership.organization.name }, role: membership.role } });
   } catch (error) { next(error); }
 });
 
-authRouter.post('/logout', (_req, res) => {
+authRouter.post('/login/mfa', async (req, res, next) => {
+  try {
+    const input = z.object({ challengeId: z.string().cuid(), otp: z.string().regex(/^\d{6}$/) }).parse(req.body);
+    const challenge = await prisma.loginChallenge.findFirst({ where: { id: input.challengeId, consumedAt: null }, include: { user: { include: { memberships: { where: { status: MembershipStatus.ACTIVE }, include: { organization: true }, take: 1 } } } } });
+    if (!challenge || challenge.expiresAt <= new Date() || challenge.attempts >= 5) throw new AppError(400, 'INVALID_MFA_CHALLENGE', 'The sign-in code is invalid or has expired.');
+    await prisma.loginChallenge.update({ where: { id: challenge.id }, data: { attempts: { increment: 1 } } });
+    if (!(await verifyLoginOtp(challenge.phone, input.otp))) throw new AppError(400, 'INVALID_MFA_OTP', 'The sign-in code is invalid or has expired.');
+    const membership = challenge.user.memberships[0];
+    if (!membership) throw new AppError(403, 'NO_ORGANIZATION_ACCESS', 'No active organization membership was found.');
+    await prisma.loginChallenge.update({ where: { id: challenge.id }, data: { consumedAt: new Date() } });
+    const token = await createSession({ userId: challenge.user.id, organizationId: membership.organizationId, role: membership.role, sessionVersion: challenge.user.sessionVersion });
+    res.cookie(SESSION_COOKIE, token, cookieOptions).json({ success: true, data: { user: { id: challenge.user.id, name: challenge.user.name, email: challenge.user.email, phone: challenge.user.phone, twoFactorEnabled: challenge.user.twoFactorEnabled }, organization: { id: membership.organization.id, name: membership.organization.name }, role: membership.role } });
+  } catch (error) { next(error); }
+});
+
+authRouter.post('/logout', requireAuth, async (req, res) => {
+  await revokeSession((req as AuthenticatedRequest).auth.sessionId);
   res.clearCookie(SESSION_COOKIE, { ...cookieOptions, maxAge: undefined }).json({ success: true, data: null });
 });
 
@@ -64,11 +90,53 @@ authRouter.post('/password-reset/confirm', async (req, res, next) => {
     const passwordHash = await argon2.hash(input.password, { type: argon2.argon2id });
     const membership = challenge.user.memberships[0];
     await prisma.$transaction(async (tx) => {
-      await tx.user.update({ where: { id: challenge.userId }, data: { passwordHash } });
+      await tx.user.update({ where: { id: challenge.userId }, data: { passwordHash, sessionVersion: { increment: 1 } } });
       await tx.passwordResetChallenge.updateMany({ where: { userId: challenge.userId, consumedAt: null }, data: { consumedAt: new Date() } });
       await tx.auditLog.create({ data: { organizationId: membership?.organizationId, userId: challenge.userId, action: 'PASSWORD_RESET_COMPLETED', resourceType: 'User', resourceId: challenge.userId } });
     });
     res.clearCookie(SESSION_COOKIE, { ...cookieOptions, maxAge: undefined }).json({ success: true, data: null, message: 'Password reset successfully.' });
+  } catch (error) { next(error); }
+});
+
+authRouter.post('/mfa/setup', requireAuth, async (req, res, next) => {
+  try {
+    const { password } = z.object({ password: z.string().min(8).max(200) }).parse(req.body);
+    const auth = (req as AuthenticatedRequest).auth;
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: auth.userId } });
+    if (!user.phone) throw new AppError(409, 'MFA_PHONE_REQUIRED', 'Add a recovery phone before enabling MFA.');
+    if (!(await argon2.verify(user.passwordHash, password))) throw new AppError(401, 'INVALID_PASSWORD', 'Current password is incorrect.');
+    const challenge = await prisma.loginChallenge.create({ data: { userId: user.id, phone: user.phone, expiresAt: new Date(Date.now() + 10 * 60_000) } });
+    try { await sendLoginOtp(user.phone); }
+    catch (error) { await prisma.loginChallenge.delete({ where: { id: challenge.id } }); throw error; }
+    res.json({ success: true, data: { challengeId: challenge.id } });
+  } catch (error) { next(error); }
+});
+
+authRouter.post('/mfa/enable', requireAuth, async (req, res, next) => {
+  try {
+    const input = z.object({ challengeId: z.string().cuid(), otp: z.string().regex(/^\d{6}$/) }).parse(req.body);
+    const auth = (req as AuthenticatedRequest).auth;
+    const challenge = await prisma.loginChallenge.findFirst({ where: { id: input.challengeId, userId: auth.userId, consumedAt: null } });
+    if (!challenge || challenge.expiresAt <= new Date() || challenge.attempts >= 5) throw new AppError(400, 'INVALID_MFA_CHALLENGE', 'The MFA code is invalid or has expired.');
+    await prisma.loginChallenge.update({ where: { id: challenge.id }, data: { attempts: { increment: 1 } } });
+    if (!(await verifyLoginOtp(challenge.phone, input.otp))) throw new AppError(400, 'INVALID_MFA_OTP', 'The MFA code is invalid or has expired.');
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: auth.userId }, data: { twoFactorEnabled: true } }),
+      prisma.loginChallenge.update({ where: { id: challenge.id }, data: { consumedAt: new Date() } }),
+    ]);
+    res.json({ success: true, data: { twoFactorEnabled: true } });
+  } catch (error) { next(error); }
+});
+
+authRouter.delete('/mfa', requireAuth, async (req, res, next) => {
+  try {
+    const { password } = z.object({ password: z.string().min(8).max(200) }).parse(req.body);
+    const auth = (req as AuthenticatedRequest).auth;
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: auth.userId } });
+    if (!(await argon2.verify(user.passwordHash, password))) throw new AppError(401, 'INVALID_PASSWORD', 'Current password is incorrect.');
+    await prisma.user.update({ where: { id: auth.userId }, data: { twoFactorEnabled: false, sessionVersion: { increment: 1 } } });
+    await revokeSession(auth.sessionId);
+    res.clearCookie(SESSION_COOKIE, { ...cookieOptions, maxAge: undefined }).json({ success: true, data: { twoFactorEnabled: false } });
   } catch (error) { next(error); }
 });
 
@@ -88,7 +156,7 @@ authRouter.get('/me', requireAuth, async (req, res, next) => {
   try {
     const auth = (req as AuthenticatedRequest).auth;
     const [user, organization] = await Promise.all([
-      prisma.user.findUniqueOrThrow({ where: { id: auth.userId }, select: { id: true, name: true, email: true, phone: true } }),
+      prisma.user.findUniqueOrThrow({ where: { id: auth.userId }, select: { id: true, name: true, email: true, phone: true, twoFactorEnabled: true } }),
       prisma.organization.findUniqueOrThrow({ where: { id: auth.organizationId }, select: { id: true, name: true, slug: true } }),
     ]);
     res.json({ success: true, data: { user, organization, role: auth.role } });

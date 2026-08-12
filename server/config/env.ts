@@ -1,5 +1,15 @@
 import 'dotenv/config';
+import { readFileSync } from 'node:fs';
 import { z } from 'zod';
+
+function secret(name: string): string | undefined {
+  const direct = process.env[name];
+  const file = process.env[`${name}_FILE`];
+  if (direct && file) throw new Error(`Configure only one of ${name} or ${name}_FILE.`);
+  if (!file) return direct;
+  try { return readFileSync(file, 'utf8').trim(); }
+  catch { throw new Error(`Unable to read secret file for ${name}.`); }
+}
 
 function databaseUrlFromLegacyVariables(
   env: NodeJS.ProcessEnv,
@@ -16,18 +26,21 @@ function databaseUrlFromLegacyVariables(
 const normalizedEnv = {
   ...process.env,
   DATABASE_URL:
-    process.env.DATABASE_URL ?? databaseUrlFromLegacyVariables(process.env),
-  SESSION_SECRET: process.env.SESSION_SECRET ?? process.env.JWT_SECRET,
+    secret('DATABASE_URL') ?? databaseUrlFromLegacyVariables(process.env),
+  SESSION_SECRET: secret('SESSION_SECRET') ?? secret('JWT_SECRET'),
+  REDIS_URL: secret('REDIS_URL'),
   PAYSTACK_PUBLIC_KEY:
-    process.env.PAYSTACK_PUBLIC_KEY ??
+    secret('PAYSTACK_PUBLIC_KEY') ??
     process.env.PAYSTACK_TEST_PUBLIC_KEY ??
     process.env.PAYSTACK_LIVE_PUBLIC_KEY,
   PAYSTACK_SECRET_KEY:
-    process.env.PAYSTACK_SECRET_KEY ??
+    secret('PAYSTACK_SECRET_KEY') ??
     process.env.PAYSTACK_TEST_SECRET_KEY ??
     process.env.PAYSTACK_TEST_SECREY_KEY ??
     process.env.PAYSTACK_LIVE_SECREY_KEY,
-  ARKESEL_API_KEY: process.env.ARKESEL_API_KEY ?? process.env.ARKESEL_APIKEY,
+  ARKESEL_API_KEY: secret('ARKESEL_API_KEY') ?? secret('ARKESEL_APIKEY'),
+  ARKESEL_SENDER_ID: secret('ARKESEL_SENDER_ID'),
+  ARKESEL_USSD_SECRET: secret('ARKESEL_USSD_SECRET'),
 };
 
 const envSchema = z.object({
@@ -48,6 +61,8 @@ const envSchema = z.object({
   PAYSTACK_WEBHOOK_SECRET: z.string().min(1).optional(),
   ARKESEL_API_KEY: z.string().min(1).optional(),
   ARKESEL_SENDER_ID: z.string().min(1).optional(),
+  ARKESEL_USSD_SECRET: z.string().min(24).optional(),
+  WEBHOOK_RETRY_INTERVAL_MS: z.coerce.number().int().min(5_000).default(30_000),
 });
 
 const parsed = envSchema.safeParse(normalizedEnv);
@@ -60,3 +75,17 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data;
+
+if (env.NODE_ENV === 'production') {
+  const missing = [
+    !env.REDIS_URL && 'REDIS_URL',
+    !env.PAYSTACK_SECRET_KEY && 'PAYSTACK_SECRET_KEY',
+    !env.ARKESEL_USSD_SECRET && 'ARKESEL_USSD_SECRET',
+    !env.ARKESEL_API_KEY && 'ARKESEL_API_KEY',
+    !env.ARKESEL_SENDER_ID && 'ARKESEL_SENDER_ID',
+  ].filter(Boolean);
+  if (missing.length) throw new Error(`Missing production security configuration: ${missing.join(', ')}`);
+  if (env.SESSION_SECRET.toLowerCase().includes('replace')) throw new Error('SESSION_SECRET must not be a placeholder in production.');
+  if (!env.APP_URL.startsWith('https://') || !env.API_URL.startsWith('https://')) throw new Error('APP_URL and API_URL must use HTTPS in production.');
+  if (!env.PAYSTACK_SECRET_KEY?.startsWith('sk_live_')) throw new Error('A Paystack live secret key is required in production.');
+}
