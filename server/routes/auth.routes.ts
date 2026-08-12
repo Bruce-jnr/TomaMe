@@ -13,15 +13,17 @@ import { sendPasswordResetOtp, verifyPasswordResetOtp } from '../messaging/arkes
 import { sendLoginOtp, verifyLoginOtp } from '../messaging/arkesel-otp.provider.js';
 
 export const authRouter = Router();
-const loginSchema = z.object({ email: z.string().email(), password: z.string().min(8).max(200) });
+const portalSchema = z.enum(['superadmin', 'administrator']);
+const loginSchema = z.object({ identifier: z.string().trim().min(3).max(254), password: z.string().min(6, 'Password must contain at least 6 characters.').max(200), portal: portalSchema });
 const newPasswordSchema = z.string().min(10).max(200).regex(/[a-z]/, 'Include a lowercase letter.').regex(/[A-Z]/, 'Include an uppercase letter.').regex(/\d/, 'Include a number.');
 const cookieOptions = { httpOnly: true, sameSite: 'lax' as const, secure: env.NODE_ENV === 'production', maxAge: 8 * 60 * 60 * 1000, path: '/' };
 
 authRouter.post('/login', async (req, res, next) => {
   try {
     const input = loginSchema.parse(req.body);
-    const user = await prisma.user.findUnique({
-      where: { email: input.email.toLowerCase() },
+    const identifier = input.identifier.toLowerCase();
+    const user = await prisma.user.findFirst({
+      where: input.portal === 'superadmin' ? { email: identifier } : { username: identifier },
       include: { memberships: { where: { status: MembershipStatus.ACTIVE }, include: { organization: true }, take: 1 } },
     });
     if (!user || !(await argon2.verify(user.passwordHash, input.password))) {
@@ -29,6 +31,8 @@ authRouter.post('/login', async (req, res, next) => {
     }
     const membership = user.memberships[0];
     if (!membership) throw new AppError(403, 'NO_ORGANIZATION_ACCESS', 'No active organization membership was found.');
+    const permitted = input.portal === 'superadmin' ? user.globalRole === 'SUPER_ADMIN' : user.globalRole !== 'SUPER_ADMIN' && membership.role === 'EVENT_ADMIN';
+    if (!permitted) throw new AppError(403, 'WRONG_LOGIN_PORTAL', input.portal === 'superadmin' ? 'Use a superadmin account for this portal.' : 'Use an assigned event administrator account for this portal.');
     if (user.twoFactorEnabled) {
       if (!user.phone) throw new AppError(409, 'MFA_PHONE_REQUIRED', 'A recovery phone is required for MFA.');
       await prisma.loginChallenge.updateMany({ where: { userId: user.id, consumedAt: null }, data: { consumedAt: new Date() } });
@@ -38,23 +42,25 @@ authRouter.post('/login', async (req, res, next) => {
       res.json({ success: true, data: { mfaRequired: true, challengeId: challenge.id } });
       return;
     }
-    const token = await createSession({ userId: user.id, organizationId: membership.organizationId, role: membership.role, sessionVersion: user.sessionVersion });
-    res.cookie(SESSION_COOKIE, token, cookieOptions).json({ success: true, data: { user: { id: user.id, name: user.name, email: user.email, phone: user.phone, twoFactorEnabled: user.twoFactorEnabled }, organization: { id: membership.organization.id, name: membership.organization.name }, role: membership.role } });
+    const token = await createSession({ userId: user.id, organizationId: membership.organizationId, role: membership.role, sessionVersion: user.sessionVersion, globalRole: user.globalRole });
+    res.cookie(SESSION_COOKIE, token, cookieOptions).json({ success: true, data: { user: { id: user.id, name: user.name, email: user.email, phone: user.phone, twoFactorEnabled: user.twoFactorEnabled }, organization: { id: membership.organization.id, name: membership.organization.name }, role: membership.role, globalRole: user.globalRole } });
   } catch (error) { next(error); }
 });
 
 authRouter.post('/login/mfa', async (req, res, next) => {
   try {
-    const input = z.object({ challengeId: z.string().cuid(), otp: z.string().regex(/^\d{6}$/) }).parse(req.body);
+    const input = z.object({ challengeId: z.string().cuid(), otp: z.string().regex(/^\d{6}$/), portal: portalSchema }).parse(req.body);
     const challenge = await prisma.loginChallenge.findFirst({ where: { id: input.challengeId, consumedAt: null }, include: { user: { include: { memberships: { where: { status: MembershipStatus.ACTIVE }, include: { organization: true }, take: 1 } } } } });
     if (!challenge || challenge.expiresAt <= new Date() || challenge.attempts >= 5) throw new AppError(400, 'INVALID_MFA_CHALLENGE', 'The sign-in code is invalid or has expired.');
     await prisma.loginChallenge.update({ where: { id: challenge.id }, data: { attempts: { increment: 1 } } });
     if (!(await verifyLoginOtp(challenge.phone, input.otp))) throw new AppError(400, 'INVALID_MFA_OTP', 'The sign-in code is invalid or has expired.');
     const membership = challenge.user.memberships[0];
     if (!membership) throw new AppError(403, 'NO_ORGANIZATION_ACCESS', 'No active organization membership was found.');
+    const permitted = input.portal === 'superadmin' ? challenge.user.globalRole === 'SUPER_ADMIN' : challenge.user.globalRole !== 'SUPER_ADMIN' && membership.role === 'EVENT_ADMIN';
+    if (!permitted) throw new AppError(403, 'WRONG_LOGIN_PORTAL', input.portal === 'superadmin' ? 'Use a superadmin account for this portal.' : 'Use an assigned event administrator account for this portal.');
     await prisma.loginChallenge.update({ where: { id: challenge.id }, data: { consumedAt: new Date() } });
-    const token = await createSession({ userId: challenge.user.id, organizationId: membership.organizationId, role: membership.role, sessionVersion: challenge.user.sessionVersion });
-    res.cookie(SESSION_COOKIE, token, cookieOptions).json({ success: true, data: { user: { id: challenge.user.id, name: challenge.user.name, email: challenge.user.email, phone: challenge.user.phone, twoFactorEnabled: challenge.user.twoFactorEnabled }, organization: { id: membership.organization.id, name: membership.organization.name }, role: membership.role } });
+    const token = await createSession({ userId: challenge.user.id, organizationId: membership.organizationId, role: membership.role, sessionVersion: challenge.user.sessionVersion, globalRole: challenge.user.globalRole });
+    res.cookie(SESSION_COOKIE, token, cookieOptions).json({ success: true, data: { user: { id: challenge.user.id, name: challenge.user.name, email: challenge.user.email, phone: challenge.user.phone, twoFactorEnabled: challenge.user.twoFactorEnabled }, organization: { id: membership.organization.id, name: membership.organization.name }, role: membership.role, globalRole: challenge.user.globalRole } });
   } catch (error) { next(error); }
 });
 
@@ -159,6 +165,6 @@ authRouter.get('/me', requireAuth, async (req, res, next) => {
       prisma.user.findUniqueOrThrow({ where: { id: auth.userId }, select: { id: true, name: true, email: true, phone: true, twoFactorEnabled: true } }),
       prisma.organization.findUniqueOrThrow({ where: { id: auth.organizationId }, select: { id: true, name: true, slug: true } }),
     ]);
-    res.json({ success: true, data: { user, organization, role: auth.role } });
+    res.json({ success: true, data: { user, organization, role: auth.role, globalRole: auth.globalRole } });
   } catch (error) { next(error); }
 });

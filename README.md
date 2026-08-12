@@ -165,6 +165,8 @@ These credentials are only for local development. Set unique `SEED_ADMIN_EMAIL` 
 - `/` - homepage, live events, and featured candidates
 - `/events` - searchable event discovery
 - `/organizers` - organizer product overview
+- `/superadmin/login` - platform superadmin login
+- `/administrators/login` - event administrator login
 
 ### Organizer
 

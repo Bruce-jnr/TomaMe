@@ -1,4 +1,5 @@
-import { EventStatus, OrganizationRole, PaymentProviderName, PaymentStatus, Prisma, RecordStatus, VoteChannel } from '@prisma/client';
+import { EventStatus, MembershipStatus, OrganizationRole, PaymentProviderName, PaymentStatus, Prisma, RecordStatus, VoteChannel } from '@prisma/client';
+import argon2 from 'argon2';
 import express, { Router } from 'express';
 import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -7,11 +8,26 @@ import { z } from 'zod';
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../errors/app-error.js';
 import { type AuthenticatedRequest, requireAuth, requireRoles } from '../middleware/auth.js';
+import type { SessionPayload } from '../auth/session.js';
+import { normalizeGhanaPhone } from '../domain/phone.js';
 
 export const organizerRouter = Router();
 organizerRouter.use(requireAuth);
 
 const managerRoles = [OrganizationRole.ORGANIZATION_OWNER, OrganizationRole.EVENT_ADMIN];
+const paymentRoles = [OrganizationRole.ORGANIZATION_OWNER, OrganizationRole.EVENT_ADMIN, OrganizationRole.FINANCE_ADMIN];
+
+function eventAccessWhere(auth: SessionPayload): Prisma.EventWhereInput {
+  return {
+    organizationId: auth.organizationId,
+    ...(auth.globalRole === 'SUPER_ADMIN' ? {} : { assignments: { some: { membership: { userId: auth.userId, organizationId: auth.organizationId, status: 'ACTIVE' } } } }),
+  };
+}
+
+function requireSuperAdmin(req: express.Request, _res: express.Response, next: express.NextFunction) {
+  if ((req as AuthenticatedRequest).auth.globalRole !== 'SUPER_ADMIN') return next(new AppError(403, 'SUPER_ADMIN_REQUIRED', 'Superadmin access is required.'));
+  next();
+}
 const categorySchema = z.object({ eventId: z.string().cuid(), name: z.string().trim().min(2).max(100), description: z.string().trim().max(500).optional(), votePriceOverride: z.number().int().positive().nullable().optional() });
 const candidateSchema = z.object({ eventId: z.string().cuid(), categoryId: z.string().cuid(), name: z.string().trim().min(2).max(100), candidateCode: z.string().trim().toUpperCase().regex(/^[A-Z0-9-]{2,20}$/), biography: z.string().trim().max(2000).optional(), slogan: z.string().trim().max(200).optional(), photoUrl: z.string().trim().max(300).optional() });
 const eventSchema = z.object({
@@ -50,9 +66,75 @@ function slugify(value: string) {
 
 organizerRouter.get('/context', async (req, res, next) => {
   try {
-    const { organizationId } = (req as AuthenticatedRequest).auth;
-    const events = await prisma.event.findMany({ where: { organizationId, status: { not: EventStatus.ARCHIVED } }, select: { id: true, name: true, description: true, status: true, bannerUrl: true, startAt: true, endAt: true, timezone: true, currency: true, defaultVotePrice: true, minimumVotes: true, maximumVotesPerTransaction: true, webVotingEnabled: true, ussdVotingEnabled: true, resultsVisibility: true }, orderBy: { createdAt: 'desc' } });
+    const auth = (req as AuthenticatedRequest).auth;
+    const events = await prisma.event.findMany({ where: { ...eventAccessWhere(auth), status: { not: EventStatus.ARCHIVED } }, select: { id: true, name: true, description: true, status: true, bannerUrl: true, startAt: true, endAt: true, timezone: true, currency: true, defaultVotePrice: true, minimumVotes: true, maximumVotesPerTransaction: true, webVotingEnabled: true, ussdVotingEnabled: true, resultsVisibility: true }, orderBy: { createdAt: 'desc' } });
     res.json({ success: true, data: { events } });
+  } catch (error) { next(error); }
+});
+
+organizerRouter.get('/event-administrators', requireSuperAdmin, async (req, res, next) => {
+  try {
+    const auth = (req as AuthenticatedRequest).auth;
+    const memberships = await prisma.organizationMembership.findMany({
+      where: { organizationId: auth.organizationId, role: { in: [OrganizationRole.EVENT_ADMIN, OrganizationRole.FINANCE_ADMIN, OrganizationRole.RESULTS_VIEWER] } },
+      select: { id: true, role: true, status: true, user: { select: { id: true, name: true, username: true, email: true, phone: true } }, eventAssignments: { select: { event: { select: { id: true, name: true, status: true } } }, orderBy: { createdAt: 'asc' } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ success: true, data: memberships.map((item) => ({ ...item, events: item.eventAssignments.map((assignment) => assignment.event), eventAssignments: undefined })) });
+  } catch (error) { next(error); }
+});
+
+organizerRouter.post('/event-administrators', requireSuperAdmin, async (req, res, next) => {
+  try {
+    const input = z.object({
+      name: z.string().trim().min(2).max(100), username: z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9._-]{2,31}$/), email: z.string().email(), phone: z.string().trim().optional(),
+      password: z.string().min(6, 'Password must contain at least 6 characters.').max(200),
+      eventIds: z.array(z.string().cuid()).min(1, 'Select at least one event.'),
+    }).parse(req.body);
+    const auth = (req as AuthenticatedRequest).auth;
+    const eventCount = await prisma.event.count({ where: { id: { in: input.eventIds }, organizationId: auth.organizationId } });
+    if (eventCount !== new Set(input.eventIds).size) throw new AppError(400, 'INVALID_EVENT_ASSIGNMENT', 'One or more selected events are unavailable.');
+    const passwordHash = await argon2.hash(input.password, { type: argon2.argon2id });
+    const phone = input.phone ? normalizeGhanaPhone(input.phone) : null;
+    const membership = await prisma.$transaction(async (tx) => {
+      const existingUsername = await tx.user.findUnique({ where: { username: input.username } });
+      if (existingUsername) throw new AppError(409, 'USERNAME_TAKEN', 'This administrator username is already in use.');
+      const existing = await tx.user.findUnique({ where: { email: input.email.toLowerCase() } });
+      if (existing?.globalRole === 'SUPER_ADMIN') throw new AppError(409, 'ADMIN_ALREADY_PRIVILEGED', 'This account already has superadmin access.');
+      const user = existing
+        ? await tx.user.update({ where: { id: existing.id }, data: { name: input.name, username: input.username, phone, passwordHash, sessionVersion: { increment: 1 } } })
+        : await tx.user.create({ data: { name: input.name, username: input.username, email: input.email.toLowerCase(), phone, passwordHash } });
+      const access = await tx.organizationMembership.upsert({
+        where: { organizationId_userId: { organizationId: auth.organizationId, userId: user.id } },
+        create: { organizationId: auth.organizationId, userId: user.id, role: OrganizationRole.EVENT_ADMIN, status: MembershipStatus.ACTIVE },
+        update: { role: OrganizationRole.EVENT_ADMIN, status: MembershipStatus.ACTIVE },
+      });
+      await tx.eventAssignment.deleteMany({ where: { membershipId: access.id } });
+      await tx.eventAssignment.createMany({ data: [...new Set(input.eventIds)].map((eventId) => ({ eventId, membershipId: access.id })) });
+      await tx.auditLog.create({ data: { organizationId: auth.organizationId, userId: auth.userId, action: 'EVENT_ADMIN_ASSIGNED', resourceType: 'OrganizationMembership', resourceId: access.id, newValue: { administratorUsername: input.username, eventIds: input.eventIds } } });
+      return access;
+    });
+    res.status(201).json({ success: true, data: { id: membership.id }, message: 'Event administrator created and assigned.' });
+  } catch (error) { next(error); }
+});
+
+organizerRouter.patch('/event-administrators/:id', requireSuperAdmin, async (req, res, next) => {
+  try {
+    const id = z.string().cuid().parse(req.params.id);
+    const { eventIds, status } = z.object({ eventIds: z.array(z.string().cuid()).min(1), status: z.nativeEnum(MembershipStatus) }).parse(req.body);
+    const auth = (req as AuthenticatedRequest).auth;
+    const membership = await prisma.organizationMembership.findFirst({ where: { id, organizationId: auth.organizationId, role: OrganizationRole.EVENT_ADMIN } });
+    if (!membership) throw new AppError(404, 'EVENT_ADMIN_NOT_FOUND', 'Event administrator was not found.');
+    const eventCount = await prisma.event.count({ where: { id: { in: eventIds }, organizationId: auth.organizationId } });
+    if (eventCount !== new Set(eventIds).size) throw new AppError(400, 'INVALID_EVENT_ASSIGNMENT', 'One or more selected events are unavailable.');
+    await prisma.$transaction(async (tx) => {
+      await tx.organizationMembership.update({ where: { id }, data: { status } });
+      await tx.eventAssignment.deleteMany({ where: { membershipId: id } });
+      await tx.eventAssignment.createMany({ data: [...new Set(eventIds)].map((eventId) => ({ eventId, membershipId: id })) });
+      if (status !== MembershipStatus.ACTIVE) await tx.user.update({ where: { id: membership.userId }, data: { sessionVersion: { increment: 1 } } });
+      await tx.auditLog.create({ data: { organizationId: auth.organizationId, userId: auth.userId, action: 'EVENT_ADMIN_ACCESS_UPDATED', resourceType: 'OrganizationMembership', resourceId: id, newValue: { eventIds, status } } });
+    });
+    res.json({ success: true, data: null, message: 'Administrator access updated.' });
   } catch (error) { next(error); }
 });
 
@@ -66,6 +148,10 @@ organizerRouter.post('/events', requireRoles(...managerRoles), async (req, res, 
       const created = await tx.event.create({
         data: { ...input, organizationId, slug: `${slugify(input.name)}-${Date.now().toString(36)}`, description: input.description || null, status },
       });
+      if ((req as AuthenticatedRequest).auth.globalRole !== 'SUPER_ADMIN') {
+        const membership = await tx.organizationMembership.findUniqueOrThrow({ where: { organizationId_userId: { organizationId, userId } } });
+        await tx.eventAssignment.create({ data: { eventId: created.id, membershipId: membership.id } });
+      }
       await tx.auditLog.create({ data: { organizationId, userId, action: 'EVENT_PUBLISHED', resourceType: 'Event', resourceId: created.id, newValue: { name: created.name, status: created.status } } });
       return created;
     });
@@ -78,7 +164,7 @@ organizerRouter.patch('/events/:id', requireRoles(...managerRoles), async (req, 
     const id = z.string().cuid().parse(req.params.id);
     const input = eventPatchSchema.parse(req.body);
     const auth = (req as AuthenticatedRequest).auth;
-    const current = await prisma.event.findFirst({ where: { id, organizationId: auth.organizationId } });
+    const current = await prisma.event.findFirst({ where: { id, ...eventAccessWhere(auth) } });
     if (!current) throw new AppError(404, 'EVENT_NOT_FOUND', 'Event was not found.');
     const merged = {
       name: input.name ?? current.name, description: input.description ?? current.description ?? undefined,
@@ -110,7 +196,7 @@ organizerRouter.patch('/events/:id/voting-status', requireRoles(...managerRoles)
     const id = z.string().cuid().parse(req.params.id);
     const { action } = z.object({ action: z.enum(['pause', 'resume']) }).parse(req.body);
     const auth = (req as AuthenticatedRequest).auth;
-    const event = await prisma.event.findFirst({ where: { id, organizationId: auth.organizationId } });
+    const event = await prisma.event.findFirst({ where: { id, ...eventAccessWhere(auth) } });
     if (!event) throw new AppError(404, 'EVENT_NOT_FOUND', 'Event was not found.');
     if (action === 'pause' && event.status !== EventStatus.ACTIVE) {
       throw new AppError(409, 'EVENT_NOT_ACTIVE', 'Only active voting can be paused.');
@@ -134,7 +220,7 @@ organizerRouter.delete('/events/:id', requireRoles(...managerRoles), async (req,
   try {
     const id = z.string().cuid().parse(req.params.id);
     const auth = (req as AuthenticatedRequest).auth;
-    const event = await prisma.event.findFirst({ where: { id, organizationId: auth.organizationId } });
+    const event = await prisma.event.findFirst({ where: { id, ...eventAccessWhere(auth) } });
     if (!event) throw new AppError(404, 'EVENT_NOT_FOUND', 'Event was not found.');
     if (event.status === EventStatus.ACTIVE) throw new AppError(409, 'ACTIVE_EVENT_ARCHIVE_BLOCKED', 'Pause voting before archiving an active event.');
     await prisma.$transaction(async (tx) => {
@@ -147,9 +233,9 @@ organizerRouter.delete('/events/:id', requireRoles(...managerRoles), async (req,
 
 organizerRouter.get('/categories', async (req, res, next) => {
   try {
-    const { organizationId } = (req as AuthenticatedRequest).auth;
+    const auth = (req as AuthenticatedRequest).auth;
     const eventId = z.string().cuid().optional().parse(req.query.eventId);
-    const categories = await prisma.category.findMany({ where: { event: { organizationId }, ...(eventId ? { eventId } : {}), status: { not: RecordStatus.ARCHIVED } }, include: { event: { select: { name: true } }, _count: { select: { candidates: true } } }, orderBy: [{ eventId: 'asc' }, { displayOrder: 'asc' }] });
+    const categories = await prisma.category.findMany({ where: { event: eventAccessWhere(auth), ...(eventId ? { eventId } : {}), status: { not: RecordStatus.ARCHIVED } }, include: { event: { select: { name: true } }, _count: { select: { candidates: true } } }, orderBy: [{ eventId: 'asc' }, { displayOrder: 'asc' }] });
     res.json({ success: true, data: categories });
   } catch (error) { next(error); }
 });
@@ -158,7 +244,7 @@ organizerRouter.post('/categories', requireRoles(...managerRoles), async (req, r
   try {
     const input = categorySchema.parse(req.body);
     const { organizationId, userId } = (req as AuthenticatedRequest).auth;
-    const event = await prisma.event.findFirst({ where: { id: input.eventId, organizationId }, select: { id: true } });
+    const event = await prisma.event.findFirst({ where: { id: input.eventId, ...eventAccessWhere((req as AuthenticatedRequest).auth) }, select: { id: true } });
     if (!event) throw new AppError(404, 'EVENT_NOT_FOUND', 'Event was not found.');
     const category = await prisma.$transaction(async (tx) => {
       const created = await tx.category.create({ data: { ...input, slug: `${slugify(input.name)}-${Date.now().toString(36)}`, description: input.description || null } });
@@ -174,7 +260,7 @@ organizerRouter.patch('/categories/:id', requireRoles(...managerRoles), async (r
     const input = categorySchema.partial().omit({ eventId: true }).parse(req.body);
     const auth = (req as AuthenticatedRequest).auth;
     const id = z.string().cuid().parse(req.params.id);
-    const current = await prisma.category.findFirst({ where: { id, event: { organizationId: auth.organizationId } } });
+    const current = await prisma.category.findFirst({ where: { id, event: eventAccessWhere(auth) } });
     if (!current) throw new AppError(404, 'CATEGORY_NOT_FOUND', 'Category was not found.');
     const category = await prisma.category.update({ where: { id: current.id }, data: input });
     res.json({ success: true, data: category });
@@ -185,7 +271,7 @@ organizerRouter.delete('/categories/:id', requireRoles(...managerRoles), async (
   try {
     const auth = (req as AuthenticatedRequest).auth;
     const id = z.string().cuid().parse(req.params.id);
-    const current = await prisma.category.findFirst({ where: { id, event: { organizationId: auth.organizationId } }, include: { _count: { select: { candidates: true } } } });
+    const current = await prisma.category.findFirst({ where: { id, event: eventAccessWhere(auth) }, include: { _count: { select: { candidates: true } } } });
     if (!current) throw new AppError(404, 'CATEGORY_NOT_FOUND', 'Category was not found.');
     if (current._count.candidates) throw new AppError(409, 'CATEGORY_NOT_EMPTY', 'Move or archive its candidates first.');
     await prisma.category.update({ where: { id: current.id }, data: { status: RecordStatus.ARCHIVED } });
@@ -197,7 +283,7 @@ organizerRouter.get('/candidates', async (req, res, next) => {
   try {
     const auth = (req as AuthenticatedRequest).auth;
     const eventId = z.string().cuid().optional().parse(req.query.eventId);
-    const candidates = await prisma.candidate.findMany({ where: { organizationId: auth.organizationId, ...(eventId ? { eventId } : {}), status: { not: RecordStatus.ARCHIVED } }, include: { event: { select: { name: true } }, category: { select: { name: true } } }, orderBy: [{ eventId: 'asc' }, { categoryId: 'asc' }, { displayOrder: 'asc' }] });
+    const candidates = await prisma.candidate.findMany({ where: { organizationId: auth.organizationId, event: eventAccessWhere(auth), ...(eventId ? { eventId } : {}), status: { not: RecordStatus.ARCHIVED } }, include: { event: { select: { name: true } }, category: { select: { name: true } } }, orderBy: [{ eventId: 'asc' }, { categoryId: 'asc' }, { displayOrder: 'asc' }] });
     res.json({ success: true, data: candidates });
   } catch (error) { next(error); }
 });
@@ -229,7 +315,7 @@ organizerRouter.patch('/events/:id/banner', requireRoles(...managerRoles), async
     const id = z.string().cuid().parse(req.params.id);
     const { bannerUrl } = z.object({ bannerUrl: z.string().trim().max(300) }).parse(req.body);
     const auth = (req as AuthenticatedRequest).auth;
-    const event = await prisma.event.findFirst({ where: { id, organizationId: auth.organizationId }, select: { id: true, bannerUrl: true } });
+    const event = await prisma.event.findFirst({ where: { id, ...eventAccessWhere(auth) }, select: { id: true, bannerUrl: true } });
     if (!event) throw new AppError(404, 'EVENT_NOT_FOUND', 'Event was not found.');
     const updated = await prisma.$transaction(async (tx) => {
       const changed = await tx.event.update({ where: { id }, data: { bannerUrl }, select: { id: true, name: true, status: true, bannerUrl: true } });
@@ -260,7 +346,7 @@ organizerRouter.post('/candidates', requireRoles(...managerRoles), async (req, r
   try {
     const input = candidateSchema.parse(req.body);
     const auth = (req as AuthenticatedRequest).auth;
-    const category = await prisma.category.findFirst({ where: { id: input.categoryId, eventId: input.eventId, event: { organizationId: auth.organizationId } } });
+    const category = await prisma.category.findFirst({ where: { id: input.categoryId, eventId: input.eventId, event: eventAccessWhere(auth) } });
     if (!category) throw new AppError(404, 'CATEGORY_NOT_FOUND', 'Category was not found for this event.');
     const candidate = await prisma.candidate.create({ data: { ...input, organizationId: auth.organizationId, slug: `${slugify(input.name)}-${Date.now().toString(36)}`, biography: input.biography || null, slogan: input.slogan || null } });
     res.status(201).json({ success: true, data: candidate });
@@ -272,7 +358,7 @@ organizerRouter.patch('/candidates/:id', requireRoles(...managerRoles), async (r
     const input = candidateSchema.partial().omit({ eventId: true }).parse(req.body);
     const auth = (req as AuthenticatedRequest).auth;
     const id = z.string().cuid().parse(req.params.id);
-    const current = await prisma.candidate.findFirst({ where: { id, organizationId: auth.organizationId } });
+    const current = await prisma.candidate.findFirst({ where: { id, organizationId: auth.organizationId, event: eventAccessWhere(auth) } });
     if (!current) throw new AppError(404, 'CANDIDATE_NOT_FOUND', 'Candidate was not found.');
     if (input.categoryId) {
       const category = await prisma.category.findFirst({ where: { id: input.categoryId, eventId: current.eventId } });
@@ -287,14 +373,14 @@ organizerRouter.delete('/candidates/:id', requireRoles(...managerRoles), async (
   try {
     const auth = (req as AuthenticatedRequest).auth;
     const id = z.string().cuid().parse(req.params.id);
-    const current = await prisma.candidate.findFirst({ where: { id, organizationId: auth.organizationId } });
+    const current = await prisma.candidate.findFirst({ where: { id, organizationId: auth.organizationId, event: eventAccessWhere(auth) } });
     if (!current) throw new AppError(404, 'CANDIDATE_NOT_FOUND', 'Candidate was not found.');
     await prisma.candidate.update({ where: { id: current.id }, data: { status: RecordStatus.ARCHIVED } });
     res.json({ success: true, data: null });
   } catch (error) { next(error); }
 });
 
-organizerRouter.get('/payments', requireRoles(OrganizationRole.ORGANIZATION_OWNER, OrganizationRole.FINANCE_ADMIN), async (req, res, next) => {
+organizerRouter.get('/payments', requireRoles(...paymentRoles), async (req, res, next) => {
   try {
     const auth = (req as AuthenticatedRequest).auth;
     const query = z.object({ search: z.string().trim().max(100).default(''), eventId: z.string().cuid().optional(), status: z.nativeEnum(PaymentStatus).optional(), channel: z.nativeEnum(VoteChannel).optional(), provider: z.nativeEnum(PaymentProviderName).optional(), from: z.coerce.date().optional(), to: z.coerce.date().optional(), page: z.coerce.number().int().positive().default(1), pageSize: z.coerce.number().int().min(10).max(100).default(25) }).parse(req.query);
@@ -302,10 +388,10 @@ organizerRouter.get('/payments', requireRoles(OrganizationRole.ORGANIZATION_OWNE
     if (to) to.setUTCHours(23, 59, 59, 999);
     const where: Prisma.PaymentWhereInput = {
       organizationId: auth.organizationId,
+      order: { event: eventAccessWhere(auth), ...(query.eventId ? { eventId: query.eventId } : {}), ...(query.channel ? { channel: query.channel } : {}) },
       ...(query.status ? { status: query.status } : {}),
       ...(query.provider ? { provider: query.provider } : {}),
       ...(query.from || to ? { createdAt: { ...(query.from ? { gte: query.from } : {}), ...(to ? { lte: to } : {}) } } : {}),
-      ...(query.eventId || query.channel ? { order: { ...(query.eventId ? { eventId: query.eventId } : {}), ...(query.channel ? { channel: query.channel } : {}) } } : {}),
       ...(query.search ? { OR: [{ reference: { contains: query.search, mode: 'insensitive' } }, { providerTransactionId: { contains: query.search, mode: 'insensitive' } }, { order: { candidate: { name: { contains: query.search, mode: 'insensitive' } } } }, { order: { candidate: { candidateCode: { contains: query.search, mode: 'insensitive' } } } }] } : {}),
     };
     const [payments, total, paid, failed, revenueByCurrency, voteAggregate] = await Promise.all([
@@ -324,12 +410,12 @@ organizerRouter.get('/payments', requireRoles(OrganizationRole.ORGANIZATION_OWNE
   } catch (error) { next(error); }
 });
 
-organizerRouter.get('/payments/:id', requireRoles(OrganizationRole.ORGANIZATION_OWNER, OrganizationRole.FINANCE_ADMIN), async (req, res, next) => {
+organizerRouter.get('/payments/:id', requireRoles(...paymentRoles), async (req, res, next) => {
   try {
     const auth = (req as AuthenticatedRequest).auth;
     const id = z.string().cuid().parse(req.params.id);
     const payment = await prisma.payment.findFirst({
-      where: { id, organizationId: auth.organizationId },
+      where: { id, organizationId: auth.organizationId, order: { event: eventAccessWhere(auth) } },
       include: { order: { include: { event: { select: { name: true } }, category: { select: { name: true } }, candidate: { select: { name: true, candidateCode: true } }, voteTransaction: { select: { id: true, quantity: true, createdAt: true } } } } },
     });
     if (!payment) throw new AppError(404, 'PAYMENT_NOT_FOUND', 'Payment was not found.');
@@ -337,7 +423,7 @@ organizerRouter.get('/payments/:id', requireRoles(OrganizationRole.ORGANIZATION_
   } catch (error) { next(error); }
 });
 
-organizerRouter.get('/audit-logs', requireRoles(OrganizationRole.ORGANIZATION_OWNER), async (req, res, next) => {
+organizerRouter.get('/audit-logs', requireSuperAdmin, async (req, res, next) => {
   try {
     const auth = (req as AuthenticatedRequest).auth;
     const query = z.object({

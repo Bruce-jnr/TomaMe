@@ -13,9 +13,9 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
     const session = await verifySession(token);
     const membership = await prisma.organizationMembership.findUnique({
       where: { organizationId_userId: { organizationId: session.organizationId, userId: session.userId } },
-      select: { role: true, status: true, user: { select: { sessionVersion: true } } },
+      select: { role: true, status: true, user: { select: { sessionVersion: true, globalRole: true } } },
     });
-    if (!membership || membership.status !== MembershipStatus.ACTIVE || membership.role !== session.role || membership.user.sessionVersion !== session.sessionVersion) {
+    if (!membership || membership.status !== MembershipStatus.ACTIVE || membership.role !== session.role || membership.user.sessionVersion !== session.sessionVersion || membership.user.globalRole !== session.globalRole) {
       throw new AppError(403, 'MEMBERSHIP_REQUIRED', 'Organization access is not available.');
     }
     (req as AuthenticatedRequest).auth = session;

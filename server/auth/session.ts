@@ -12,6 +12,7 @@ export type SessionPayload = {
   role: 'ORGANIZATION_OWNER' | 'EVENT_ADMIN' | 'FINANCE_ADMIN' | 'RESULTS_VIEWER';
   sessionId: string;
   sessionVersion: number;
+  globalRole: 'USER' | 'SUPER_ADMIN';
 };
 
 export async function createSession(payload: Omit<SessionPayload, 'sessionId'>) {
@@ -45,6 +46,7 @@ export async function verifySession(token: string): Promise<SessionPayload> {
     role: payload.role as SessionPayload['role'],
     sessionId,
     sessionVersion: Number(payload.sessionVersion),
+    globalRole: payload.globalRole as SessionPayload['globalRole'],
   };
 }
 

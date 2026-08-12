@@ -97,6 +97,7 @@ enum AdjustmentType {
 model User {
   id           String                   @id @default(cuid())
   email        String                   @unique
+  username     String?                  @unique
   passwordHash String
   name         String
   phone        String?                  @unique
@@ -173,11 +174,24 @@ model OrganizationMembership {
   status         MembershipStatus @default(INVITED)
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   user           User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  eventAssignments EventAssignment[]
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
   @@unique([organizationId, userId])
   @@index([userId, status])
+}
+
+model EventAssignment {
+  id           String                 @id @default(cuid())
+  eventId      String
+  membershipId String
+  event        Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  membership   OrganizationMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  createdAt    DateTime               @default(now())
+
+  @@unique([eventId, membershipId])
+  @@index([membershipId, eventId])
 }
 
 model Event {
@@ -204,6 +218,7 @@ model Event {
   candidates                 Candidate[]
   voteOrders                 VoteOrder[]
   voteTransactions           VoteTransaction[]
+  assignments                EventAssignment[]
   createdAt                  DateTime           @default(now())
   updatedAt                  DateTime           @updatedAt
 

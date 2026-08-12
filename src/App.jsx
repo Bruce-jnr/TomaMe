@@ -36,12 +36,14 @@ import organizerHero from "./assets/organizer-hero.jpg";
 import {
   CandidatesRoute,
   AuditLogsRoute,
+  AdministratorsRoute,
   CategoriesRoute,
   CreateEventRoute,
   DashboardRoute,
   EventsRoute,
   PaymentsRoute,
   SettingsRoute,
+  LoginPortalRoute,
 } from "./pages/OrganizerAdminPages.jsx";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
@@ -1083,8 +1085,8 @@ function OrganizerPage() {
             every verified transaction in one organized workspace.
           </p>
           <div className="organizer-hero-actions">
-            <Link className="organizer-primary" to="/dashboard/events/new">
-              Create an event <ArrowRight />
+            <Link className="organizer-primary" to="/administrators/login">
+              Administrator sign in <ArrowRight />
             </Link>
             <a className="organizer-secondary" href="#workflow">
               See how it works
@@ -1138,8 +1140,8 @@ function OrganizerPage() {
             Build the event in stages, open voting when you are ready, and keep
             financial and vote records traceable after results are announced.
           </p>
-          <Link to="/dashboard/events/new">
-            Start event setup <ArrowRight />
+          <Link to="/administrators/login">
+            Open administrator workspace <ArrowRight />
           </Link>
         </div>
         <ol>
@@ -1349,8 +1351,8 @@ function OrganizerPage() {
         <span className="eyebrow">Prepare your next event</span>
         <h2>Give your team a better way to run public voting.</h2>
         <p>Start with event details, schedule, pricing, and voting channels.</p>
-        <Link className="organizer-primary" to="/dashboard/events/new">
-          Create your event <ArrowRight />
+        <Link className="organizer-primary" to="/administrators/login">
+          Administrator sign in <ArrowRight />
         </Link>
       </section>
     </Shell>
@@ -1418,6 +1420,8 @@ function App() {
         <Route path="/events/:slug" element={<EventDetailPage />} />
         <Route path="/payment/verify" element={<PaymentVerifyPage />} />
         <Route path="/organizers" element={<OrganizerPage />} />
+        <Route path="/superadmin/login" element={<LoginPortalRoute portal="superadmin" />} />
+        <Route path="/administrators/login" element={<LoginPortalRoute portal="administrator" />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/dashboard" element={<DashboardRoute />} />
@@ -1428,6 +1432,7 @@ function App() {
         <Route path="/dashboard/payments" element={<PaymentsRoute />} />
         <Route path="/dashboard/settings" element={<SettingsRoute />} />
         <Route path="/dashboard/audit-logs" element={<AuditLogsRoute />} />
+        <Route path="/dashboard/administrators" element={<AdministratorsRoute />} />
         <Route path="/dashboard/transactions" element={<PaymentsRoute />} />
         <Route path="*" element={<PlaceholderPage />} />
       </Routes>

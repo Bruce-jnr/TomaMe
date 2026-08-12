@@ -3921,6 +3921,134 @@ h3 {
   white-space: pre-wrap;
   word-break: break-word;
 }
+.payment-reference-cell small,
+.mobile-payment-context,
+.mobile-transaction-meta,
+.mobile-table-label {
+  display: none;
+}
+
+.administrator-registration {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.3fr);
+  gap: 32px;
+  padding: 28px;
+  margin-bottom: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+.administrator-registration h2 {
+  margin: 8px 0;
+  font-size: 24px;
+}
+.administrator-registration p {
+  color: var(--muted);
+  line-height: 1.6;
+}
+.administrator-registration fieldset {
+  padding: 0;
+  border: 0;
+}
+.administrator-registration legend {
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+.administrator-event-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+.category-drilldown-card {
+  cursor: pointer;
+}
+.category-drilldown-card:hover,
+.category-drilldown-card.selected {
+  border-color: var(--gold-dark);
+  box-shadow: 0 0 0 2px rgba(190, 145, 34, 0.12);
+}
+.category-results-panel {
+  margin-top: 24px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+.category-results-panel > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+.category-results-panel h2 {
+  margin: 6px 0 3px;
+  font-size: 22px;
+}
+.category-results-panel header p {
+  margin: 0;
+  color: var(--muted);
+}
+.category-result-list {
+  display: grid;
+}
+.category-result-candidate {
+  display: grid;
+  grid-template-columns: 32px 52px minmax(150px, 0.8fr) minmax(150px, 1fr) 76px;
+  align-items: center;
+  gap: 14px;
+  min-height: 76px;
+  border-bottom: 1px solid var(--line);
+}
+.category-result-candidate:last-child {
+  border-bottom: 0;
+}
+.result-rank {
+  color: var(--muted);
+  text-align: center;
+}
+.result-photo {
+  display: grid;
+  width: 44px;
+  height: 52px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 5px;
+  background: #eceff0;
+  font-size: 11px;
+  font-weight: 800;
+}
+.result-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.result-candidate-name,
+.result-total {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.result-candidate-name small,
+.result-total small {
+  color: var(--muted);
+}
+.result-progress {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #e8ebec;
+}
+.result-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--gold-dark);
+}
+.result-total {
+  align-items: flex-end;
+}
 .recovery-phone-panel > div {
   min-width: 180px;
   display: flex;
@@ -4058,6 +4186,9 @@ h3 {
   .mobile-admin-nav.has-audit {
     grid-template-columns: repeat(6, 1fr);
   }
+  .mobile-admin-nav.is-superadmin {
+    grid-template-columns: repeat(7, 1fr);
+  }
   .mobile-admin-nav a {
     display: flex;
     flex-direction: column;
@@ -4077,6 +4208,109 @@ h3 {
   }
 }
 @media (max-width: 560px) {
+  .candidate-table-wrap:has(.payment-table) {
+    overflow-x: hidden;
+  }
+  .payment-table {
+    min-width: 0;
+    table-layout: fixed;
+  }
+  .payment-table th,
+  .payment-table td {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+  .payment-table th:nth-child(3),
+  .payment-table td:nth-child(3),
+  .payment-table th:nth-child(4),
+  .payment-table td:nth-child(4),
+  .payment-table th:nth-child(5),
+  .payment-table td:nth-child(5),
+  .payment-table th:nth-child(7),
+  .payment-table td:nth-child(7),
+  .payment-table th:nth-child(8),
+  .payment-table td:nth-child(8),
+  .payment-table th:nth-child(9),
+  .payment-table td:nth-child(9) {
+    display: none;
+  }
+  .payment-reference-heading,
+  .payment-reference-cell {
+    width: 27%;
+  }
+  .payment-candidate-heading,
+  .payment-candidate-cell {
+    width: 31%;
+  }
+  .payment-amount-heading,
+  .payment-transaction-cell {
+    width: 31%;
+  }
+  .payment-table th:last-child,
+  .payment-table td:last-child {
+    width: 11%;
+  }
+  .payment-reference-cell small,
+  .mobile-payment-context,
+  .mobile-table-label,
+  .mobile-transaction-meta {
+    display: flex;
+  }
+  .desktop-table-label {
+    display: none;
+  }
+  .payment-reference-cell,
+  .payment-candidate-cell,
+  .payment-transaction-cell {
+    overflow-wrap: anywhere;
+  }
+  .payment-reference-cell small {
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: 8px;
+  }
+  .payment-candidate-cell .mobile-payment-context {
+    margin-top: 5px;
+    line-height: 1.35;
+  }
+  .payment-transaction-cell strong {
+    color: var(--ink);
+    font-size: 10px;
+  }
+  .mobile-transaction-meta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 8px;
+  }
+  .mobile-transaction-meta .payment-status {
+    padding: 4px 5px;
+    font-size: 7px;
+  }
+  .payment-table .icon-action {
+    width: 30px;
+    height: 30px;
+  }
+  .administrator-registration,
+  .administrator-event-options {
+    grid-template-columns: 1fr;
+  }
+  .category-results-panel {
+    padding: 16px;
+  }
+  .category-result-candidate {
+    grid-template-columns: 24px 44px minmax(0, 1fr) 60px;
+    gap: 9px;
+  }
+  .result-photo {
+    width: 40px;
+    height: 48px;
+  }
+  .result-progress {
+    display: none;
+  }
   .audit-toolbar {
     grid-template-columns: 1fr;
   }

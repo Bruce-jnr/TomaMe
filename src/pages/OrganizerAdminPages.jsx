@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Component, useCallback, useEffect, useState } from 'react';
 import {
   Archive,
   ClipboardList,
@@ -19,6 +19,7 @@ import {
   Plus,
   ReceiptText,
   Search,
+  ShieldCheck,
   Settings,
   Tag,
   Users,
@@ -38,7 +39,9 @@ async function api(path, options = {}) {
   });
   const body = await response.json().catch(() => null);
   if (!response.ok || !body?.success) {
-    const error = new Error(body?.error?.message || (response.status === 429 ? 'Too many attempts. Please wait before trying again.' : 'Request failed.'));
+    const fieldErrors = body?.error?.details?.fieldErrors;
+    const validationMessage = fieldErrors && Object.values(fieldErrors).flat().find(Boolean);
+    const error = new Error(validationMessage || body?.error?.message || (response.status === 429 ? 'Too many attempts. Please wait before trying again.' : 'Request failed.'));
     error.code = body?.error?.code;
     error.status = response.status;
     throw error;
@@ -46,9 +49,10 @@ async function api(path, options = {}) {
   return body.data;
 }
 
-function LoginPage({ onLogin }) {
+function LoginPage({ onLogin, portal = 'administrator' }) {
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -60,7 +64,7 @@ function LoginPage({ onLogin }) {
     try {
       const session = await api('/api/v1/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ identifier, password, portal }),
       });
       if (session.mfaRequired) {
         setChallengeId(session.challengeId); setOtp(''); setMode('mfa'); setState({ loading: false, error: '' });
@@ -72,7 +76,7 @@ function LoginPage({ onLogin }) {
   async function confirmMfa(event) {
     event.preventDefault(); setState({ loading: true, error: '' });
     try {
-      const session = await api('/api/v1/auth/login/mfa', { method: 'POST', body: JSON.stringify({ challengeId, otp }) });
+      const session = await api('/api/v1/auth/login/mfa', { method: 'POST', body: JSON.stringify({ challengeId, otp, portal }) });
       await onLogin(session);
     } catch (error) { setState({ loading: false, error: error.message }); }
   }
@@ -125,16 +129,16 @@ function LoginPage({ onLogin }) {
         <img src={logo} alt="TomaMe" />
       </Link>
       <form onSubmit={submit}>
-        <span className="eyebrow">Organizer workspace</span>
-        <h1>Sign in to manage your event.</h1>
-        <p>Use your organization administrator account.</p>
+        <span className="eyebrow">{portal === 'superadmin' ? 'Superadmin console' : 'Event administrator workspace'}</span>
+        <h1>{portal === 'superadmin' ? 'Sign in to manage TomaMe.' : 'Sign in to manage your events.'}</h1>
+        <p>{portal === 'superadmin' ? 'Use your authorized platform superadmin account.' : 'Use the account assigned to your event by a superadmin.'}</p>
         <label>
-          Email address
+          {portal === 'superadmin' ? 'Email address' : 'Username'}
           <input
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            type={portal === 'superadmin' ? 'email' : 'text'}
+            autoComplete="username"
+            value={identifier}
+            onChange={(event) => setIdentifier(event.target.value)}
             required
           />
         </label>
@@ -146,7 +150,7 @@ function LoginPage({ onLogin }) {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             required
-            minLength="8"
+            minLength={6}
           />
         </label>
         {state.error && (
@@ -176,7 +180,7 @@ function AdminLayout({ session, title, description, action, children }) {
   const navigate = useNavigate();
   async function logout() {
     await api('/api/v1/auth/logout', { method: 'POST' });
-    navigate('/organizers');
+    navigate(session.globalRole === 'SUPER_ADMIN' ? '/superadmin/login' : '/administrators/login');
   }
   return (
     <div className="admin-shell management-shell">
@@ -209,7 +213,8 @@ function AdminLayout({ session, title, description, action, children }) {
             <Settings />
             Settings
           </NavLink>
-          {session.role === 'ORGANIZATION_OWNER' && <NavLink to="/dashboard/audit-logs">
+          {session.globalRole === 'SUPER_ADMIN' && <NavLink to="/dashboard/administrators"><ShieldCheck />Administrators</NavLink>}
+          {session.globalRole === 'SUPER_ADMIN' && <NavLink to="/dashboard/audit-logs">
             <ClipboardList />
             Audit logs
           </NavLink>}
@@ -250,7 +255,7 @@ function AdminLayout({ session, title, description, action, children }) {
         </header>
         {children}
       </div>
-      <nav className={`mobile-admin-nav ${session.role === 'ORGANIZATION_OWNER' ? 'has-audit' : ''}`} aria-label="Organizer navigation">
+      <nav className={`mobile-admin-nav ${session.globalRole === 'SUPER_ADMIN' ? 'is-superadmin' : ''}`} aria-label="Organizer navigation">
         <NavLink to="/dashboard/events">
           <CalendarDays />
           <span>Events</span>
@@ -271,7 +276,8 @@ function AdminLayout({ session, title, description, action, children }) {
           <Settings />
           <span>Settings</span>
         </NavLink>
-        {session.role === 'ORGANIZATION_OWNER' && <NavLink to="/dashboard/audit-logs">
+        {session.globalRole === 'SUPER_ADMIN' && <NavLink to="/dashboard/administrators"><ShieldCheck /><span>Admins</span></NavLink>}
+        {session.globalRole === 'SUPER_ADMIN' && <NavLink to="/dashboard/audit-logs">
           <ClipboardList />
           <span>Audit</span>
         </NavLink>}
@@ -283,15 +289,6 @@ function AdminLayout({ session, title, description, action, children }) {
 function OrganizerGate({ page }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const completeLogin = useCallback(async () => {
-    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-    setLoading(true);
-    try {
-      setSession(await api('/api/v1/auth/me'));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
   useEffect(() => {
     api('/api/v1/auth/me')
       .then(setSession)
@@ -305,15 +302,31 @@ function OrganizerGate({ page }) {
         Checking access...
       </div>
     );
-  if (!session) return <LoginPage onLogin={completeLogin} />;
-  if (page === 'categories') return <CategoriesPage session={session} />;
-  if (page === 'candidates') return <CandidatesPage session={session} />;
-  if (page === 'payments') return <PaymentsPage session={session} />;
-  if (page === 'settings') return <SettingsPage session={session} />;
-  if (page === 'audit-logs') return <AuditLogsPage session={session} />;
-  if (page === 'events') return <OrganizerOverview session={session} eventManagement />;
-  if (page === 'create-event') return <CreateEventPage />;
-  return <OrganizerOverview session={session} />;
+  if (!session) return <PortalRedirect />;
+  let content;
+  if (page === 'categories') content = <CategoriesPage session={session} />;
+  else if (page === 'candidates') content = <CandidatesPage session={session} />;
+  else if (page === 'payments') content = <PaymentsPage session={session} />;
+  else if (page === 'settings') content = <SettingsPage session={session} />;
+  else if (page === 'audit-logs') content = <AuditLogsPage session={session} />;
+  else if (page === 'administrators') content = <EventAdministratorsPage session={session} />;
+  else if (page === 'events') content = <OrganizerOverview session={session} eventManagement />;
+  else if (page === 'create-event') content = <CreateEventPage />;
+  else content = <OrganizerOverview session={session} />;
+  return <DashboardErrorBoundary>{content}</DashboardErrorBoundary>;
+}
+
+class DashboardErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) { return { error }; }
+  componentDidCatch(error) { console.error('Dashboard render failed', error); }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return <div className="admin-shell"><main className="management-main"><div className="admin-alert" role="alert"><strong>Dashboard display error</strong><p>{this.state.error.message}</p><button className="primary-action" type="button" onClick={() => window.location.reload()}>Reload dashboard</button></div></main></div>;
+  }
 }
 
 function useOrganizerContext() {
@@ -555,13 +568,18 @@ function CategoriesPage({ session }) {
   const context = useOrganizerContext();
   const [eventId, setEventId] = useState('');
   const [items, setItems] = useState([]);
+  const [candidates, setCandidates] = useState([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const load = useCallback(() => {
-    api(`/api/v1/organizer/categories${eventId ? `?eventId=${eventId}` : ''}`)
-      .then(setItems)
+    Promise.all([
+      api(`/api/v1/organizer/categories${eventId ? `?eventId=${eventId}` : ''}`),
+      api(`/api/v1/organizer/candidates${eventId ? `?eventId=${eventId}` : ''}`),
+    ])
+      .then(([categories, candidateData]) => { setItems(categories); setCandidates(candidateData); })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [eventId]);
@@ -617,7 +635,7 @@ function CategoriesPage({ session }) {
       ) : items.length ? (
         <div className="management-grid">
           {items.map((item) => (
-            <article className="management-card" key={item.id}>
+            <article className={`management-card category-drilldown-card ${selectedCategoryId === item.id ? 'selected' : ''}`} key={item.id} role="button" tabIndex="0" aria-expanded={selectedCategoryId === item.id} onClick={() => setSelectedCategoryId((current) => current === item.id ? '' : item.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedCategoryId((current) => current === item.id ? '' : item.id); } }}>
               <div className="management-card-icon">
                 <Tag />
               </div>
@@ -626,8 +644,8 @@ function CategoriesPage({ session }) {
               <p>{item.description || 'No description added.'}</p>
               <footer>
                 <strong>{item._count.candidates} candidates</strong>
-                <div className="card-actions"><button type="button" title="Edit category" onClick={() => setEditing(item)}><Pencil /></button><button
-                  onClick={() => archive(item)}
+                <div className="card-actions"><button type="button" title="Edit category" onClick={(event) => { event.stopPropagation(); setEditing(item); }}><Pencil /></button><button
+                  onClick={(event) => { event.stopPropagation(); archive(item); }}
                   type="button"
                   title="Archive category"
                 >
@@ -644,6 +662,7 @@ function CategoriesPage({ session }) {
           text="Create the first category for an event."
         />
       )}
+      {selectedCategoryId && <CategoryCandidatesPanel category={items.find((item) => item.id === selectedCategoryId)} candidates={candidates.filter((candidate) => candidate.categoryId === selectedCategoryId)} onClose={() => setSelectedCategoryId('')} />}
       {showForm && (
         <CategoryForm
           events={context.events}
@@ -659,6 +678,25 @@ function CategoriesPage({ session }) {
       )}
     </AdminLayout>
   );
+}
+
+function CategoryCandidatesPanel({ category, candidates, onClose }) {
+  if (!category) return null;
+  const ranked = [...candidates].sort((left, right) => right.cachedVoteCount - left.cachedVoteCount || left.name.localeCompare(right.name));
+  const totalVotes = ranked.reduce((total, candidate) => total + candidate.cachedVoteCount, 0);
+  return <section className="category-results-panel">
+    <header><div><span className="eyebrow">{category.event.name}</span><h2>{category.name}</h2><p>{ranked.length} candidates · {totalVotes.toLocaleString()} total votes</p></div><button className="icon-button" type="button" onClick={onClose} aria-label="Close category results"><X /></button></header>
+    {ranked.length ? <div className="category-result-list">{ranked.map((candidate, index) => {
+      const percentage = totalVotes ? (candidate.cachedVoteCount / totalVotes) * 100 : 0;
+      return <article className="category-result-candidate" key={candidate.id}>
+        <strong className="result-rank">{index + 1}</strong>
+        <span className={`result-photo ${candidate.photoUrl ? 'has-photo' : ''}`}>{candidate.photoUrl ? <img src={candidate.photoUrl} alt="" /> : candidate.name.split(' ').map((part) => part[0]).join('').slice(0, 2)}</span>
+        <div className="result-candidate-name"><strong>{candidate.name}</strong><small>{candidate.candidateCode}</small></div>
+        <div className="result-progress"><span style={{ width: `${percentage}%` }} /></div>
+        <div className="result-total"><strong>{candidate.cachedVoteCount.toLocaleString()}</strong><small>{percentage.toFixed(1)}%</small></div>
+      </article>;
+    })}</div> : <AdminEmpty icon={Users} title="No candidates in this category" text="Add candidates to begin tracking category results." />}
+  </section>;
 }
 
 function CategoryForm({ events, item, onClose, onCreated }) {
@@ -1196,12 +1234,12 @@ function PaymentsPage({ session }) {
           <table className="admin-table payment-table">
             <thead>
               <tr>
-                <th>Reference</th>
-                <th>Candidate</th>
+                <th className="payment-reference-heading">Reference</th>
+                <th className="payment-candidate-heading">Candidate</th>
                 <th>Event</th>
                 <th>Votes</th>
                 <th>Channel</th>
-                <th>Amount</th>
+                <th className="payment-amount-heading"><span className="desktop-table-label">Amount</span><span className="mobile-table-label">Transaction</span></th>
                 <th>Method</th>
                 <th>Status</th>
                 <th>Date</th>
@@ -1211,12 +1249,14 @@ function PaymentsPage({ session }) {
             <tbody>
               {data.items.map((item) => (
                 <tr key={item.id}>
-                  <td>
+                  <td className="payment-reference-cell">
                     <b className="table-reference">{item.reference}</b>
+                    <small>{new Date(item.createdAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}</small>
                   </td>
-                  <td>
+                  <td className="payment-candidate-cell">
                     {item.order.candidate.name}
                     <small>{item.order.candidate.candidateCode}</small>
+                    <small className="mobile-payment-context">{item.order.event.name} · {item.order.category.name}</small>
                   </td>
                   <td>
                     {item.order.event.name}
@@ -1224,8 +1264,9 @@ function PaymentsPage({ session }) {
                   </td>
                   <td>{item.order.quantity}</td>
                   <td>{item.order.channel}</td>
-                  <td>
-                    {item.currency} {(item.amount / 100).toFixed(2)}
+                  <td className="payment-transaction-cell">
+                    <strong>{item.currency} {(item.amount / 100).toFixed(2)}</strong>
+                    <div className="mobile-transaction-meta"><span>{item.order.channel}</span><span className={`payment-status ${item.status.toLowerCase()}`}><i />{item.status}</span></div>
                   </td>
                   <td>{item.paymentMethod?.replaceAll('_', ' ') || '—'}</td>
                   <td>
@@ -1329,6 +1370,76 @@ function safeAuditValue(value) {
   return value == null ? null : redact(value);
 }
 
+function PortalRedirect() {
+  const navigate = useNavigate();
+  useEffect(() => { navigate('/administrators/login', { replace: true }); }, [navigate]);
+  return <div className="admin-loading"><LoaderCircle className="spin" />Redirecting to sign in...</div>;
+}
+
+export function LoginPortalRoute({ portal }) {
+  const navigate = useNavigate();
+  const [checking, setChecking] = useState(true);
+  useEffect(() => {
+    api('/api/v1/auth/me').then((session) => {
+      const permitted = portal === 'superadmin' ? session.globalRole === 'SUPER_ADMIN' : session.globalRole !== 'SUPER_ADMIN' && session.role === 'EVENT_ADMIN';
+      if (permitted) navigate('/dashboard', { replace: true });
+      else api('/api/v1/auth/logout', { method: 'POST' }).finally(() => setChecking(false));
+    }).catch(() => setChecking(false));
+  }, [navigate, portal]);
+  if (checking) return <div className="admin-loading"><LoaderCircle className="spin" />Checking access...</div>;
+  return <LoginPage portal={portal} onLogin={() => navigate('/dashboard', { replace: true })} />;
+}
+
+function EventAdministratorsPage({ session }) {
+  const context = useOrganizerContext();
+  const [items, setItems] = useState([]);
+  const [state, setState] = useState({ loading: true, error: '', message: '' });
+  const load = useCallback(() => {
+    api('/api/v1/organizer/event-administrators')
+      .then((data) => { setItems(Array.isArray(data) ? data : []); setState((current) => ({ ...current, loading: false, error: '' })); })
+      .catch((error) => setState((current) => ({ ...current, loading: false, error: error.message })));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  async function createAdministrator(event) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const eventIds = form.getAll('eventIds');
+    setState((current) => ({ ...current, error: '', message: '' }));
+    try {
+      await api('/api/v1/organizer/event-administrators', { method: 'POST', body: JSON.stringify({ name: form.get('name'), username: form.get('username'), email: form.get('email'), phone: form.get('phone') || undefined, password: form.get('password'), eventIds }) });
+      formElement.reset();
+      setState((current) => ({ ...current, message: 'Administrator created and assigned.' }));
+      load();
+    } catch (error) { setState((current) => ({ ...current, error: error.message })); }
+  }
+
+  async function toggleAccess(item) {
+    try {
+      await api(`/api/v1/organizer/event-administrators/${item.id}`, { method: 'PATCH', body: JSON.stringify({ eventIds: (item.events || []).map((event) => event.id), status: item.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' }) });
+      load();
+    } catch (error) { setState((current) => ({ ...current, error: error.message })); }
+  }
+
+  return <AdminLayout session={session} title="Event administrators" description="Register administrators and assign the events they are allowed to manage.">
+    {state.error && <div className="admin-alert">{state.error}</div>}
+    {state.message && <div className="admin-success">{state.message}</div>}
+    <section className="administrator-registration">
+      <div><span className="eyebrow">New account</span><h2>Register an administrator</h2><p>Create their login credentials and choose the events visible in their workspace.</p></div>
+      <form className="admin-form" onSubmit={createAdministrator}>
+        <div className="admin-form-row"><label>Full name<input name="name" required minLength="2" /></label><label>Username<input name="username" required minLength="3" maxLength="32" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,31}" autoComplete="off" /></label></div>
+        <div className="admin-form-row"><label>Email<input name="email" type="email" required /></label><label>Phone<input name="phone" inputMode="tel" placeholder="Optional" /></label></div>
+        <label>Temporary password<input name="password" type="password" required minLength="6" autoComplete="new-password" /><small>Use at least 6 characters.</small></label>
+        <fieldset><legend>Assign events</legend><div className="administrator-event-options">{context.events.map((event) => <label className="admin-check" key={event.id}><input type="checkbox" name="eventIds" value={event.id} />{event.name}</label>)}</div></fieldset>
+        <button className="primary-action" type="submit" disabled={!context.events.length}><ShieldCheck /> Register administrator</button>
+      </form>
+    </section>
+    <div className="section-heading"><div><span className="eyebrow">Access directory</span><h2>Registered administrators</h2></div></div>
+    {state.loading ? <AdminLoading /> : items.length ? <div className="candidate-table-wrap"><table className="admin-table"><thead><tr><th>Administrator</th><th>Username</th><th>Assigned events</th><th>Status</th><th>Access</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td><strong>{item.user?.name || 'Administrator'}</strong><small>{item.user?.email || 'No email'}</small></td><td><b className="table-reference">{item.user?.username || 'Not configured'}</b></td><td>{(item.events || []).map((event) => event.name).join(', ') || 'No events assigned'}</td><td><span className={`payment-status ${item.status === 'ACTIVE' ? 'paid' : 'failed'}`}><i />{item.status}</span></td><td><button className="secondary-action" type="button" onClick={() => toggleAccess(item)}>{item.status === 'ACTIVE' ? 'Suspend' : 'Restore'}</button></td></tr>)}</tbody></table></div> : <AdminEmpty icon={ShieldCheck} title="No event administrators" text="Create an administrator and assign their events." />}
+  </AdminLayout>;
+}
+
 function AuditLogsPage({ session }) {
   const [search, setSearch] = useState('');
   const [action, setAction] = useState('');
@@ -1377,6 +1488,9 @@ export function SettingsRoute() {
 }
 export function AuditLogsRoute() {
   return <OrganizerGate page="audit-logs" />;
+}
+export function AdministratorsRoute() {
+  return <OrganizerGate page="administrators" />;
 }
 export function DashboardRoute() {
   return <OrganizerGate page="overview" />;
