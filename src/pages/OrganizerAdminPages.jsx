@@ -209,10 +209,10 @@ function AdminLayout({ session, title, description, action, children }) {
             <ReceiptText />
             Payments
           </NavLink>
-          <NavLink to="/dashboard/settings">
+          {session.globalRole === 'SUPER_ADMIN' && <NavLink to="/dashboard/settings">
             <Settings />
             Settings
-          </NavLink>
+          </NavLink>}
           {session.globalRole === 'SUPER_ADMIN' && <NavLink to="/dashboard/administrators"><ShieldCheck />Administrators</NavLink>}
           {session.globalRole === 'SUPER_ADMIN' && <NavLink to="/dashboard/audit-logs">
             <ClipboardList />
@@ -255,7 +255,7 @@ function AdminLayout({ session, title, description, action, children }) {
         </header>
         {children}
       </div>
-      <nav className={`mobile-admin-nav ${session.globalRole === 'SUPER_ADMIN' ? 'is-superadmin' : ''}`} aria-label="Organizer navigation">
+      <nav className={`mobile-admin-nav ${session.globalRole === 'SUPER_ADMIN' ? 'is-superadmin' : 'is-event-admin'}`} aria-label="Organizer navigation">
         <NavLink to="/dashboard/events">
           <CalendarDays />
           <span>Events</span>
@@ -272,10 +272,10 @@ function AdminLayout({ session, title, description, action, children }) {
           <ReceiptText />
           <span>Payments</span>
         </NavLink>
-        <NavLink to="/dashboard/settings">
+        {session.globalRole === 'SUPER_ADMIN' && <NavLink to="/dashboard/settings">
           <Settings />
           <span>Settings</span>
-        </NavLink>
+        </NavLink>}
         {session.globalRole === 'SUPER_ADMIN' && <NavLink to="/dashboard/administrators"><ShieldCheck /><span>Admins</span></NavLink>}
         {session.globalRole === 'SUPER_ADMIN' && <NavLink to="/dashboard/audit-logs">
           <ClipboardList />
@@ -307,7 +307,7 @@ function OrganizerGate({ page }) {
   if (page === 'categories') content = <CategoriesPage session={session} />;
   else if (page === 'candidates') content = <CandidatesPage session={session} />;
   else if (page === 'payments') content = <PaymentsPage session={session} />;
-  else if (page === 'settings') content = <SettingsPage session={session} />;
+  else if (page === 'settings') content = session.globalRole === 'SUPER_ADMIN' ? <SettingsPage session={session} /> : <DashboardAccessDenied session={session} />;
   else if (page === 'audit-logs') content = <AuditLogsPage session={session} />;
   else if (page === 'administrators') content = <EventAdministratorsPage session={session} />;
   else if (page === 'events') content = <OrganizerOverview session={session} eventManagement />;
@@ -327,6 +327,10 @@ class DashboardErrorBoundary extends Component {
     if (!this.state.error) return this.props.children;
     return <div className="admin-shell"><main className="management-main"><div className="admin-alert" role="alert"><strong>Dashboard display error</strong><p>{this.state.error.message}</p><button className="primary-action" type="button" onClick={() => window.location.reload()}>Reload dashboard</button></div></main></div>;
   }
+}
+
+function DashboardAccessDenied({ session }) {
+  return <AdminLayout session={session} title="Access restricted" description="This section is available only to platform superadmins."><AdminEmpty icon={ShieldCheck} title="Superadmin access required" text="Return to your event dashboard to continue managing assigned events." /></AdminLayout>;
 }
 
 function useOrganizerContext() {
@@ -1121,6 +1125,7 @@ function PaymentsPage({ session }) {
   const [data, setData] = useState({
     items: [],
     summary: { total: 0, failed: 0, successRate: 0, creditedVotes: 0, revenueByCurrency: [] },
+    eventSummaries: [],
     pagination: { page: 1, total: 0, pageCount: 0 },
   });
   const [loading, setLoading] = useState(true);
@@ -1180,6 +1185,13 @@ function PaymentsPage({ session }) {
           <strong>{data.summary.failed.toLocaleString()}</strong>
         </div>
       </div>
+      {!eventId && data.eventSummaries.length > 1 && <section className="event-payment-breakdown">
+        <div className="section-heading"><div><span className="eyebrow">By event</span><h2>Event performance</h2><p>Confirmed revenue and credited votes for each assigned event.</p></div></div>
+        <div className="event-payment-grid">{data.eventSummaries.map((item) => <article key={item.eventId}>
+          <header><h3>{item.eventName}</h3><span>{item.transactions.toLocaleString()} transactions</span></header>
+          <dl><div><dt>Revenue</dt><dd>{item.revenueByCurrency.map((revenue) => `${revenue.currency} ${(revenue.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}`).join(' / ') || 'GHS 0.00'}</dd></div><div><dt>Votes</dt><dd>{item.creditedVotes.toLocaleString()}</dd></div><div><dt>Confirmed</dt><dd>{item.paid.toLocaleString()}</dd></div></dl>
+        </article>)}</div>
+      </section>}
       <div className="management-toolbar payment-toolbar">
         <label>
           Event

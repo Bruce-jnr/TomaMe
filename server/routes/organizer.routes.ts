@@ -394,17 +394,34 @@ organizerRouter.get('/payments', requireRoles(...paymentRoles), async (req, res,
       ...(query.from || to ? { createdAt: { ...(query.from ? { gte: query.from } : {}), ...(to ? { lte: to } : {}) } } : {}),
       ...(query.search ? { OR: [{ reference: { contains: query.search, mode: 'insensitive' } }, { providerTransactionId: { contains: query.search, mode: 'insensitive' } }, { order: { candidate: { name: { contains: query.search, mode: 'insensitive' } } } }, { order: { candidate: { candidateCode: { contains: query.search, mode: 'insensitive' } } } }] } : {}),
     };
-    const [payments, total, paid, failed, revenueByCurrency, voteAggregate] = await Promise.all([
+    const [payments, total, paid, failed, revenueByCurrency, voteAggregate, eventPayments] = await Promise.all([
       prisma.payment.findMany({ where, include: { order: { select: { quantity: true, channel: true, voterPhone: true, event: { select: { id: true, name: true } }, candidate: { select: { name: true, candidateCode: true } }, category: { select: { name: true } } } } }, orderBy: { createdAt: 'desc' }, skip: (query.page - 1) * query.pageSize, take: query.pageSize }),
       prisma.payment.count({ where }),
       prisma.payment.count({ where: { ...where, status: PaymentStatus.PAID } }),
       prisma.payment.count({ where: { ...where, status: PaymentStatus.FAILED } }),
       prisma.payment.groupBy({ by: ['currency'], where: { ...where, status: PaymentStatus.PAID }, _sum: { amount: true } }),
       prisma.voteTransaction.aggregate({ where: { payment: { is: where } }, _sum: { quantity: true } }),
+      prisma.payment.findMany({
+        where,
+        select: { amount: true, currency: true, status: true, order: { select: { voteTransaction: { select: { quantity: true } }, event: { select: { id: true, name: true } } } } },
+      }),
     ]);
+    const eventSummaryMap = new Map<string, { eventId: string; eventName: string; transactions: number; paid: number; revenueByCurrency: Map<string, number>; creditedVotes: number }>();
+    for (const payment of eventPayments) {
+      const event = payment.order.event;
+      const summary = eventSummaryMap.get(event.id) ?? { eventId: event.id, eventName: event.name, transactions: 0, paid: 0, revenueByCurrency: new Map(), creditedVotes: 0 };
+      summary.transactions += 1;
+      if (payment.status === PaymentStatus.PAID) {
+        summary.paid += 1;
+        summary.creditedVotes += payment.order.voteTransaction?.quantity ?? 0;
+        summary.revenueByCurrency.set(payment.currency, (summary.revenueByCurrency.get(payment.currency) ?? 0) + payment.amount);
+      }
+      eventSummaryMap.set(event.id, summary);
+    }
     res.json({ success: true, data: {
       items: payments.map((payment) => ({ ...payment, order: { ...payment.order, voterPhone: payment.order.voterPhone.replace(/.(?=.{4})/g, '•') } })),
       summary: { total, paid, failed, successRate: total ? Math.round((paid / total) * 1000) / 10 : 0, creditedVotes: voteAggregate._sum.quantity ?? 0, revenueByCurrency: revenueByCurrency.map((item) => ({ currency: item.currency, amount: item._sum.amount ?? 0 })) },
+      eventSummaries: Array.from(eventSummaryMap.values(), (item) => ({ ...item, revenueByCurrency: Array.from(item.revenueByCurrency, ([currency, amount]) => ({ currency, amount })) })).sort((left, right) => left.eventName.localeCompare(right.eventName)),
       pagination: { page: query.page, pageSize: query.pageSize, total, pageCount: Math.ceil(total / query.pageSize) },
     } });
   } catch (error) { next(error); }

@@ -3315,29 +3315,104 @@ h3 {
 .payment-summary {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
   margin-top: 24px;
 }
 .payment-summary > div {
-  min-height: 86px;
+  position: relative;
+  min-height: 96px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
+  padding: 18px;
+  overflow: hidden;
+  border: 1px solid #e2e6e8;
+  border-radius: 8px;
   background: white;
+  box-shadow: 0 4px 14px rgba(28, 39, 48, 0.07);
+}
+.payment-summary > div::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
+  background: #b78a27;
+  content: '';
+}
+.payment-summary > div:nth-child(2)::before {
+  background: #25825a;
+}
+.payment-summary > div:nth-child(3)::before {
+  background: #376d91;
+}
+.payment-summary > div:nth-child(4)::before {
+  background: #65559a;
+}
+.payment-summary > div:nth-child(5)::before {
+  background: #a84450;
 }
 .payment-summary small {
   color: var(--muted);
   font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 .payment-summary strong {
   margin-top: 7px;
   font: 600 22px Outfit;
+  color: var(--ink);
 }
 .payment-toolbar {
   justify-content: flex-start;
+}
+.event-payment-breakdown {
+  margin-top: 30px;
+}
+.event-payment-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+.event-payment-grid article {
+  padding: 18px;
+  border: 1px solid #e2e6e8;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(28, 39, 48, 0.06);
+}
+.event-payment-grid header {
+  min-height: 48px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid var(--line);
+}
+.event-payment-grid h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+.event-payment-grid header span,
+.event-payment-grid dt {
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.event-payment-grid dl {
+  display: grid;
+  grid-template-columns: 1.5fr 0.7fr 0.7fr;
+  gap: 10px;
+  margin: 14px 0 0;
+}
+.event-payment-grid dl div {
+  min-width: 0;
+}
+.event-payment-grid dd {
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
 }
 .payment-export {
   margin-left: auto;
@@ -4123,6 +4198,9 @@ h3 {
   .payment-summary {
     grid-template-columns: repeat(3, 1fr);
   }
+  .event-payment-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 @media (max-width: 800px) {
   .management-shell {
@@ -4189,6 +4267,9 @@ h3 {
   .mobile-admin-nav.is-superadmin {
     grid-template-columns: repeat(7, 1fr);
   }
+  .mobile-admin-nav.is-event-admin {
+    grid-template-columns: repeat(4, 1fr);
+  }
   .mobile-admin-nav a {
     display: flex;
     flex-direction: column;
@@ -4208,6 +4289,9 @@ h3 {
   }
 }
 @media (max-width: 560px) {
+  .event-payment-grid {
+    grid-template-columns: 1fr;
+  }
   .candidate-table-wrap:has(.payment-table) {
     overflow-x: hidden;
   }
@@ -4345,7 +4429,10 @@ h3 {
     width: 100%;
   }
   .payment-summary {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .payment-summary > div:last-child {
+    grid-column: 1 / -1;
   }
   .payment-export {
     width: 100%;
