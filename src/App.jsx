@@ -273,12 +273,33 @@ function ErrorState({ message }) {
   );
 }
 
+function ScrollReveal({ children, className = "", delay = 0, as: Element = "div", ...props }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return undefined;
+    if (!("IntersectionObserver" in window) || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      node.classList.add("is-revealed");
+      return undefined;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        node.classList.add("is-revealed");
+        observer.unobserve(node);
+      }
+    }, { threshold: 0.12, rootMargin: "0px 0px -48px" });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  return <Element {...props} ref={ref} className={`scroll-reveal ${className}`.trim()} style={{ "--reveal-delay": `${delay}ms`, ...props.style }}>{children}</Element>;
+}
+
 function HomePage() {
   const events = usePublicData("/api/v1/public/events?status=live");
   return (
     <Shell>
       <section className="hero-section">
-        <div className="hero-copy">
+        <ScrollReveal className="hero-copy">
           <span className="eyebrow">Ghana&apos;s public voting platform</span>
           <h1>
             Vote for the people who <em>inspire you.</em>
@@ -288,18 +309,18 @@ function HomePage() {
             support in a few simple steps.
           </p>
           <SearchForm />
-        </div>
-        <div className="hero-art" aria-hidden="true">
+        </ScrollReveal>
+        <ScrollReveal className="hero-art reveal-scale" delay={100}>
           <div className="ballot">
             <Vote />
             <strong>Your voice counts</strong>
             <span>Secure voting powered by TomaMe</span>
           </div>
           <div className="vote-mark">✓</div>
-        </div>
+        </ScrollReveal>
       </section>
       <section className="content-section">
-        <div className="section-heading">
+        <ScrollReveal className="section-heading">
           <div>
             <span className="eyebrow">Happening now</span>
             <h2>Live events</h2>
@@ -307,15 +328,15 @@ function HomePage() {
           <Link to="/events?status=live">
             See all <ArrowRight />
           </Link>
-        </div>
+        </ScrollReveal>
         {events.loading ? (
           <LoadingCards />
         ) : events.error ? (
           <ErrorState message={events.error} />
         ) : events.data.length ? (
           <div className="event-grid">
-            {events.data.slice(0, 3).map((event) => (
-              <EventCard event={event} key={event.id} featured />
+            {events.data.slice(0, 3).map((event, index) => (
+              <ScrollReveal key={event.id} delay={index * 80}><EventCard event={event} featured /></ScrollReveal>
             ))}
           </div>
         ) : (
@@ -326,35 +347,35 @@ function HomePage() {
         )}
       </section>
       <section className="how-section">
-        <div>
+        <ScrollReveal>
           <span className="eyebrow">Simple and transparent</span>
           <h2>Three steps to support your favorite</h2>
-        </div>
+        </ScrollReveal>
         <ol>
-          <li>
+          <ScrollReveal as="li">
             <b>01</b>
             <strong>Find a candidate</strong>
             <span>Search by name or candidate code.</span>
-          </li>
-          <li>
+          </ScrollReveal>
+          <ScrollReveal as="li" delay={80}>
             <b>02</b>
             <strong>Choose your votes</strong>
             <span>Select how many votes you want to cast.</span>
-          </li>
-          <li>
+          </ScrollReveal>
+          <ScrollReveal as="li" delay={160}>
             <b>03</b>
             <strong>Pay securely</strong>
             <span>Confirm payment and receive your reference.</span>
-          </li>
+          </ScrollReveal>
         </ol>
       </section>
       <section className="faq-section" id="faq">
-        <div className="faq-heading">
+        <ScrollReveal className="faq-heading">
           <span className="eyebrow">Frequently asked questions</span>
           <h2>What voters need to know.</h2>
           <p>Clear answers about voting, payments, results, and privacy.</p>
-        </div>
-        <div className="faq-list">
+        </ScrollReveal>
+        <ScrollReveal className="faq-list" delay={80}>
           <details>
             <summary>Do I need an account to vote?</summary>
             <p>No. You can vote using your mobile number without creating a TomaMe account.</p>
@@ -379,7 +400,7 @@ function HomePage() {
             <summary>Who controls event information and results?</summary>
             <p>The event organizer manages contestants, schedules, pricing, and result visibility. TomaMe provides the voting and transaction platform.</p>
           </details>
-        </div>
+        </ScrollReveal>
       </section>
     </Shell>
   );
@@ -404,7 +425,7 @@ function ExplorePage() {
   }
   return (
     <Shell>
-      <section className="explore-intro">
+      <ScrollReveal as="section" className="explore-intro">
         <span className="eyebrow">Event discovery</span>
         <h1>Find an event worth celebrating.</h1>
         <p>
@@ -412,9 +433,9 @@ function ExplorePage() {
           results.
         </p>
         <SearchForm key={`${search}-${focusSearch}`} initialValue={search} compact focus={focusSearch} />
-      </section>
+      </ScrollReveal>
       <section className="content-section explore-content">
-        <div
+        <ScrollReveal
           className="filter-row"
           role="group"
           aria-label="Filter events by status"
@@ -429,8 +450,8 @@ function ExplorePage() {
               {item}
             </button>
           ))}
-        </div>
-        <div className="results-heading">
+        </ScrollReveal>
+        <ScrollReveal className="results-heading">
           <h2>
             {search
               ? `Results for “${search}”`
@@ -441,15 +462,15 @@ function ExplorePage() {
           <span>
             {events.loading ? "Loading" : `${events.data.length} found`}
           </span>
-        </div>
+        </ScrollReveal>
         {events.loading ? (
           <LoadingCards />
         ) : events.error ? (
           <ErrorState message={events.error} />
         ) : events.data.length ? (
           <div className="event-grid explore-grid">
-            {events.data.map((event) => (
-              <EventCard event={event} key={event.id} />
+            {events.data.map((event, index) => (
+              <ScrollReveal key={event.id} delay={(index % 3) * 80}><EventCard event={event} /></ScrollReveal>
             ))}
           </div>
         ) : (
