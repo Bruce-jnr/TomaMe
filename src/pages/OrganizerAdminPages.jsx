@@ -407,20 +407,21 @@ function OrganizerOverview({ session, eventManagement = false }) {
   return (
     <AdminLayout session={session} title={eventManagement ? 'Events' : 'Overview'} description={eventManagement ? 'Manage event details, publishing assets, and voting availability.' : 'Control voting availability across your events.'} action={eventManagement ? <Link className="primary-action" to="/dashboard/events/new"><Plus /> New event</Link> : undefined}>
       {state.error && <div className="admin-alert">{state.error}</div>}
-      {state.loading ? <AdminLoading /> : state.events.length ? (
-        <div className="event-control-list">
+      {state.loading ? <AdminLoading type="cards" /> : state.events.length ? (
+        <div className="management-grid event-card-grid">
           {state.events.map((event) => {
             const controllable = event.status === 'ACTIVE' || event.status === 'PAUSED';
             return (
-              <article className="event-control-row" key={event.id}>
-                <div className={`event-control-icon ${event.bannerUrl ? 'has-banner' : ''}`}>
+              <article className="management-card admin-event-card" key={event.id}>
+                <div className={`admin-event-banner ${event.bannerUrl ? 'has-banner' : ''}`}>
                   {event.bannerUrl ? <img src={event.bannerUrl} alt="" /> : <CalendarDays />}
+                  <span className={`event-state ${event.status.toLowerCase()}`}>{event.status}</span>
                 </div>
-                <div><h2>{event.name}</h2><span className={`event-state ${event.status.toLowerCase()}`}>{event.status}</span></div>
-                <div className="event-control-actions">
-                  <button className="secondary-action" type="button" onClick={() => setEditing(event)}><Pencil /> Edit details</button>
-                  <label className="secondary-action">
-                    <ImagePlus /> {event.bannerUrl ? 'Replace banner' : 'Add banner'}
+                <div className="admin-event-content"><span>{new Date(event.startAt).toLocaleDateString()} - {new Date(event.endAt).toLocaleDateString()}</span><h2>{event.name}</h2><p>{event.description || 'No event description added.'}</p></div>
+                <footer className="admin-event-actions">
+                  <button className="icon-action" type="button" title="Edit event details" onClick={() => setEditing(event)}><Pencil /></button>
+                  <label className="icon-action" title={event.bannerUrl ? 'Replace banner' : 'Add banner'} aria-label={event.bannerUrl ? 'Replace banner' : 'Add banner'}>
+                    <ImagePlus />
                     <input type="file" accept="image/jpeg,image/png,image/webp" disabled={state.pendingId === event.id} onChange={(input) => uploadEventBanner(event, input.target.files?.[0])} />
                   </label>
                   {controllable && (
@@ -430,7 +431,7 @@ function OrganizerOverview({ session, eventManagement = false }) {
                     </button>
                   )}
                   <button className="icon-action event-archive" type="button" title="Archive event" disabled={state.pendingId === event.id || event.status === 'ACTIVE'} onClick={() => archiveEvent(event)}><Archive /></button>
-                </div>
+                </footer>
               </article>
             );
           })}
@@ -635,7 +636,7 @@ function CategoriesPage({ session }) {
       </div>
       {error && <div className="admin-alert">{error}</div>}
       {loading ? (
-        <AdminLoading />
+        <AdminLoading type="cards" />
       ) : items.length ? (
         <div className="management-grid">
           {items.map((item) => (
@@ -1160,7 +1161,8 @@ function PaymentsPage({ session }) {
       title="Payments"
       description="Review provider-confirmed transactions and their credited votes."
     >
-      <div className="payment-summary">
+      <div className={`payment-summary ${loading ? 'payment-summary-skeleton' : ''}`} aria-busy={loading}>
+        {loading ? [0, 1, 2, 3, 4].map((item) => <div key={item} aria-hidden="true"><span className="skeleton-line short" /><span className="skeleton-line title" /></div>) : <>
         <div>
           <small>Transactions</small>
           <strong>{data.summary.total.toLocaleString()}</strong>
@@ -1184,6 +1186,7 @@ function PaymentsPage({ session }) {
           <small>Failed payments</small>
           <strong>{data.summary.failed.toLocaleString()}</strong>
         </div>
+        </>}
       </div>
       {!eventId && data.eventSummaries.length > 1 && <section className="event-payment-breakdown">
         <div className="section-heading"><div><span className="eyebrow">By event</span><h2>Event performance</h2><p>Confirmed revenue and credited votes for each assigned event.</p></div></div>
@@ -1340,13 +1343,9 @@ function PaymentsPage({ session }) {
   );
 }
 
-function AdminLoading() {
-  return (
-    <div className="admin-loading inline">
-      <LoaderCircle className="spin" />
-      Loading...
-    </div>
-  );
+function AdminLoading({ type = 'table' }) {
+  if (type === 'cards') return <div className="management-grid admin-skeleton-grid" aria-label="Loading content" aria-busy="true">{[0, 1, 2].map((item) => <div className="management-card admin-skeleton-card" key={item} aria-hidden="true"><span className="skeleton-block skeleton-icon" /><span className="skeleton-line short" /><span className="skeleton-line title" /><span className="skeleton-line" /><span className="skeleton-line medium" /></div>)}</div>;
+  return <div className="candidate-table-wrap admin-skeleton-table" aria-label="Loading records" aria-busy="true"><div className="skeleton-table-head" />{[0, 1, 2, 3, 4].map((item) => <div className="skeleton-table-row" key={item} aria-hidden="true"><span className="skeleton-block skeleton-avatar" /><span className="skeleton-line title" /><span className="skeleton-line medium" /><span className="skeleton-line short" /></div>)}</div>;
 }
 function AdminEmpty({ icon: Icon, title, text }) {
   return (

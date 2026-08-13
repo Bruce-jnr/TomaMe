@@ -308,6 +308,7 @@ Unique database constraints enforce one payment and one vote transaction per ord
 - Administrative resources are scoped by organization on the server
 - Login and vote-order endpoints are rate limited
 - Helmet security headers and restricted CORS are enabled
+- Production responses include `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`; HSTS is disabled for local HTTP development
 - Sensitive logger paths are redacted
 - Category and candidate deletion is implemented as archival
 - Financial and vote history is not deleted
@@ -376,6 +377,6 @@ Provider-specific behavior must be implemented from current official documentati
 3. Run `npm ci`, `npm run db:generate`, and `npm run db:deploy`.
 4. Build both applications with `npm run build` and `npm run build:api`.
 5. Serve `dist/` through a static host or CDN.
-6. Run the API with `npm run start:api` behind HTTPS.
+6. Run the API with `npm run start:api` behind an HTTPS reverse proxy. Do not enable production HSTS until every subdomain is available exclusively over HTTPS.
 7. Configure `APP_URL`, `API_URL`, `VITE_API_URL`, and provider webhook URLs for the deployed origins.
 8. Replace all development seed credentials before creating organizer accounts.

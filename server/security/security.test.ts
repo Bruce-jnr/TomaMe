@@ -3,8 +3,17 @@ import { SignJWT } from 'jose';
 import { matchesSharedSecret } from './shared-secret.js';
 import { retryDelay } from '../services/webhook-processing.service.js';
 import { verifySession } from '../auth/session.js';
+import { HSTS_MAX_AGE_SECONDS, strictTransportSecurity } from './http-headers.js';
 
 describe('security controls', () => {
+  it('enables a two-year HSTS policy only in production', () => {
+    expect(strictTransportSecurity('development')).toBe(false);
+    expect(strictTransportSecurity('production')).toEqual({
+      maxAge: HSTS_MAX_AGE_SECONDS,
+      includeSubDomains: true,
+      preload: true,
+    });
+  });
   it('compares callback secrets without accepting prefixes or suffixes', () => {
     const secret = 'a-secure-callback-secret-value';
     expect(matchesSharedSecret(secret, secret)).toBe(true);

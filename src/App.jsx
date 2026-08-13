@@ -257,9 +257,11 @@ function EventCard({ event, featured = false }) {
 
 function LoadingCards() {
   return (
-    <div className="loading-state">
-      <LoaderCircle className="spin" />
-      <span>Loading live events...</span>
+    <div className="event-grid skeleton-event-grid" aria-label="Loading events" aria-busy="true">
+      {[0, 1, 2].map((item) => <article className="event-card skeleton-event-card" key={item} aria-hidden="true">
+        <div className="skeleton-block skeleton-event-image" />
+        <div className="event-content"><span className="skeleton-line short" /><span className="skeleton-line title" /><span className="skeleton-line" /><span className="skeleton-line medium" /></div>
+      </article>)}
     </div>
   );
 }
