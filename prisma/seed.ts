@@ -1,5 +1,16 @@
 import argon2 from 'argon2';
-import { EventStatus, MembershipStatus, OrganizationRole, OrganizationStatus, PaymentProviderName, PaymentStatus, RecordStatus, ResultsVisibility, VoteChannel, VoteStatus } from '@prisma/client';
+import {
+  EventStatus,
+  MembershipStatus,
+  OrganizationRole,
+  OrganizationStatus,
+  PaymentProviderName,
+  PaymentStatus,
+  RecordStatus,
+  ResultsVisibility,
+  VoteChannel,
+  VoteStatus,
+} from '@prisma/client';
 import { prisma } from '../server/db/prisma.js';
 
 const eventBanner =
@@ -26,7 +37,10 @@ async function main() {
         slug: 'ghana-student-awards-2026',
       },
     },
-    update: { status: EventStatus.ACTIVE, resultsVisibility: ResultsVisibility.EXACT_TOTALS },
+    update: {
+      status: EventStatus.ACTIVE,
+      resultsVisibility: ResultsVisibility.EXACT_TOTALS,
+    },
     create: {
       organizationId: organization.id,
       name: 'Ghana Student Awards 2026',
@@ -49,13 +63,32 @@ async function main() {
   const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'TomaMeDev2026!';
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
-    update: { passwordHash: await argon2.hash(adminPassword, { type: argon2.argon2id }) },
-    create: { email: adminEmail, name: 'TomaMe Organizer', passwordHash: await argon2.hash(adminPassword, { type: argon2.argon2id }) },
+    update: {
+      passwordHash: await argon2.hash(adminPassword, { type: argon2.argon2id }),
+    },
+    create: {
+      email: adminEmail,
+      name: 'TomaMe Organizer',
+      passwordHash: await argon2.hash(adminPassword, { type: argon2.argon2id }),
+    },
   });
   await prisma.organizationMembership.upsert({
-    where: { organizationId_userId: { organizationId: organization.id, userId: admin.id } },
-    update: { role: OrganizationRole.ORGANIZATION_OWNER, status: MembershipStatus.ACTIVE },
-    create: { organizationId: organization.id, userId: admin.id, role: OrganizationRole.ORGANIZATION_OWNER, status: MembershipStatus.ACTIVE },
+    where: {
+      organizationId_userId: {
+        organizationId: organization.id,
+        userId: admin.id,
+      },
+    },
+    update: {
+      role: OrganizationRole.ORGANIZATION_OWNER,
+      status: MembershipStatus.ACTIVE,
+    },
+    create: {
+      organizationId: organization.id,
+      userId: admin.id,
+      role: OrganizationRole.ORGANIZATION_OWNER,
+      status: MembershipStatus.ACTIVE,
+    },
   });
 
   const categoryNames = [
@@ -107,29 +140,98 @@ async function main() {
     }
   }
 
-  await prisma.candidate.updateMany({ where: { eventId: event.id }, data: { cachedVoteCount: 0 } });
-  const candidate = await prisma.candidate.findFirstOrThrow({ where: { eventId: event.id }, orderBy: { displayOrder: 'asc' } });
+  await prisma.candidate.updateMany({
+    where: { eventId: event.id },
+    data: { cachedVoteCount: 0 },
+  });
+  const candidate = await prisma.candidate.findFirstOrThrow({
+    where: { eventId: event.id },
+    orderBy: { displayOrder: 'asc' },
+  });
   const reference = 'TOMA-2026-DEMO0001';
   const order = await prisma.voteOrder.upsert({
     where: { paymentReference: reference },
     update: {},
-    create: { organizationId: organization.id, eventId: event.id, categoryId: candidate.categoryId, candidateId: candidate.id, quantity: 25, unitPrice: 100, amount: 2500, currency: 'GHS', voterPhone: '+233200000001', voterEmail: 'voter@example.com', channel: VoteChannel.WEB, paymentProvider: PaymentProviderName.PAYSTACK, paymentReference: reference, paymentStatus: PaymentStatus.PAID, voteStatus: VoteStatus.CREDITED, paidAt: new Date(), processedAt: new Date() },
+    create: {
+      organizationId: organization.id,
+      eventId: event.id,
+      categoryId: candidate.categoryId,
+      candidateId: candidate.id,
+      quantity: 25,
+      unitPrice: 100,
+      amount: 2500,
+      currency: 'GHS',
+      voterPhone: '+233200000001',
+      voterEmail: 'voter@example.com',
+      channel: VoteChannel.WEB,
+      paymentProvider: PaymentProviderName.PAYSTACK,
+      paymentReference: reference,
+      paymentStatus: PaymentStatus.PAID,
+      voteStatus: VoteStatus.CREDITED,
+      paidAt: new Date(),
+      processedAt: new Date(),
+    },
   });
   const payment = await prisma.payment.upsert({
     where: { reference },
     update: {},
-    create: { organizationId: organization.id, orderId: order.id, provider: PaymentProviderName.PAYSTACK, providerTransactionId: 'PAYSTACK-DEMO-0001', reference, amount: 2500, currency: 'GHS', status: PaymentStatus.PAID, paymentMethod: 'mobile_money', providerPaidAt: new Date() },
+    create: {
+      organizationId: organization.id,
+      orderId: order.id,
+      provider: PaymentProviderName.PAYSTACK,
+      providerTransactionId: 'PAYSTACK-DEMO-0001',
+      reference,
+      amount: 2500,
+      currency: 'GHS',
+      status: PaymentStatus.PAID,
+      paymentMethod: 'mobile_money',
+      providerPaidAt: new Date(),
+    },
   });
   await prisma.voteTransaction.upsert({
     where: { orderId: order.id },
     update: {},
-    create: { organizationId: organization.id, eventId: event.id, categoryId: candidate.categoryId, candidateId: candidate.id, orderId: order.id, paymentId: payment.id, quantity: 25, unitPrice: 100, amount: 2500, currency: 'GHS', channel: VoteChannel.WEB, paymentReference: reference },
+    create: {
+      organizationId: organization.id,
+      eventId: event.id,
+      categoryId: candidate.categoryId,
+      candidateId: candidate.id,
+      orderId: order.id,
+      paymentId: payment.id,
+      quantity: 25,
+      unitPrice: 100,
+      amount: 2500,
+      currency: 'GHS',
+      channel: VoteChannel.WEB,
+      paymentReference: reference,
+    },
   });
-  const ledgerTotals = await prisma.voteTransaction.groupBy({ by: ['candidateId'], where: { eventId: event.id }, _sum: { quantity: true } });
-  const adjustmentTotals = await prisma.voteAdjustment.groupBy({ by: ['candidateId'], where: { candidate: { eventId: event.id } }, _sum: { quantity: true } });
-  const totals = new Map(ledgerTotals.map((item) => [item.candidateId, item._sum.quantity ?? 0]));
-  for (const item of adjustmentTotals) totals.set(item.candidateId, (totals.get(item.candidateId) ?? 0) + (item._sum.quantity ?? 0));
-  await Promise.all(Array.from(totals, ([candidateId, cachedVoteCount]) => prisma.candidate.update({ where: { id: candidateId }, data: { cachedVoteCount } })));
+  const ledgerTotals = await prisma.voteTransaction.groupBy({
+    by: ['candidateId'],
+    where: { eventId: event.id },
+    _sum: { quantity: true },
+  });
+  const adjustmentTotals = await prisma.voteAdjustment.groupBy({
+    by: ['candidateId'],
+    where: { candidate: { eventId: event.id } },
+    _sum: { quantity: true },
+  });
+  const totals = new Map(
+    ledgerTotals.map((item) => [item.candidateId, item._sum.quantity ?? 0]),
+  );
+  for (const item of adjustmentTotals)
+    totals.set(
+      item.candidateId,
+      (totals.get(item.candidateId) ?? 0) + (item._sum.quantity ?? 0),
+    );
+  await Promise.all(
+    Array.from(totals, ([candidateId, cachedVoteCount]) =>
+      prisma.candidate.update({
+        where: { id: candidateId },
+        data: { cachedVoteCount },
+      }),
+    ),
+  );
 }
 
 main()

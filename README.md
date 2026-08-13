@@ -341,7 +341,6 @@ Compiled outputs:
 
 ```text
 prisma/                  Prisma schema, migrations, and seed
-public/                  Public browser assets
 server/
   auth/                  Session creation and verification
   config/                Environment and logger configuration
@@ -355,7 +354,6 @@ src/
   assets/                Local UI assets
   pages/                 Organizer and event-management pages
   App.jsx                Public pages and application routing
-views/                    Original UI design references
 ```
 
 ## Not Yet Complete

@@ -5,10 +5,14 @@ import { z } from 'zod';
 function secret(name: string): string | undefined {
   const direct = process.env[name];
   const file = process.env[`${name}_FILE`];
-  if (direct && file) throw new Error(`Configure only one of ${name} or ${name}_FILE.`);
+  if (direct && file)
+    throw new Error(`Configure only one of ${name} or ${name}_FILE.`);
   if (!file) return direct;
-  try { return readFileSync(file, 'utf8').trim(); }
-  catch { throw new Error(`Unable to read secret file for ${name}.`); }
+  try {
+    return readFileSync(file, 'utf8').trim();
+  } catch {
+    throw new Error(`Unable to read secret file for ${name}.`);
+  }
 }
 
 function databaseUrlFromLegacyVariables(
@@ -84,8 +88,17 @@ if (env.NODE_ENV === 'production') {
     !env.ARKESEL_API_KEY && 'ARKESEL_API_KEY',
     !env.ARKESEL_SENDER_ID && 'ARKESEL_SENDER_ID',
   ].filter(Boolean);
-  if (missing.length) throw new Error(`Missing production security configuration: ${missing.join(', ')}`);
-  if (env.SESSION_SECRET.toLowerCase().includes('replace')) throw new Error('SESSION_SECRET must not be a placeholder in production.');
-  if (!env.APP_URL.startsWith('https://') || !env.API_URL.startsWith('https://')) throw new Error('APP_URL and API_URL must use HTTPS in production.');
-  if (!env.PAYSTACK_SECRET_KEY?.startsWith('sk_live_')) throw new Error('A Paystack live secret key is required in production.');
+  if (missing.length)
+    throw new Error(
+      `Missing production security configuration: ${missing.join(', ')}`,
+    );
+  if (env.SESSION_SECRET.toLowerCase().includes('replace'))
+    throw new Error('SESSION_SECRET must not be a placeholder in production.');
+  if (
+    !env.APP_URL.startsWith('https://') ||
+    !env.API_URL.startsWith('https://')
+  )
+    throw new Error('APP_URL and API_URL must use HTTPS in production.');
+  if (!env.PAYSTACK_SECRET_KEY?.startsWith('sk_live_'))
+    throw new Error('A Paystack live secret key is required in production.');
 }

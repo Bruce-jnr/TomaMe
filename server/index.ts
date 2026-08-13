@@ -3,8 +3,14 @@ import { env } from './config/env.js';
 import { logger } from './config/logger.js';
 import { prisma } from './db/prisma.js';
 import { connectRedis, disconnectRedis } from './state/redis.js';
-import { startWebhookRetryWorker, stopWebhookRetryWorker } from './workers/webhook-retry.worker.js';
-import { startAuditRetentionWorker, stopAuditRetentionWorker } from './workers/audit-retention.worker.js';
+import {
+  startWebhookRetryWorker,
+  stopWebhookRetryWorker,
+} from './workers/webhook-retry.worker.js';
+import {
+  startAuditRetentionWorker,
+  stopAuditRetentionWorker,
+} from './workers/audit-retention.worker.js';
 
 await connectRedis();
 const server = app.listen(env.API_PORT, () => {
