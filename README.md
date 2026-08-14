@@ -253,6 +253,24 @@ Production secrets can be mounted through `*_FILE`, including `SESSION_SECRET_FI
 - `PATCH|DELETE /api/v1/organizer/categories/:id`
 - `GET|POST /api/v1/organizer/candidates`
 - `PATCH|DELETE /api/v1/organizer/candidates/:id`
+
+### Superadmin financial management
+
+- `GET /api/v1/superadmin/financial/overview`
+- `GET /api/v1/superadmin/financial/ledger`
+- `POST /api/v1/superadmin/financial/adjustments`
+- `GET|POST /api/v1/superadmin/financial/recipients`
+- `GET /api/v1/superadmin/financial/providers?type=mobile_money|ghipss&currency=GHS`
+- `GET|POST /api/v1/superadmin/financial/withdrawals`
+- `POST /api/v1/superadmin/financial/withdrawals/:id/approve`
+- `POST /api/v1/superadmin/financial/withdrawals/:id/reject`
+- `POST /api/v1/superadmin/financial/withdrawals/:id/process`
+- `POST /api/v1/superadmin/financial/withdrawals/:id/finalize`
+
+Mutating financial routes require the configured `APP_URL` origin. Withdrawal
+creation also requires an `Idempotency-Key`, and transfer processing requires
+the superadmin's current password. Paystack transfer webhooks finalize or
+reverse reservations after signature verification.
 - `GET /api/v1/organizer/payments`
 
 All organizer queries are scoped by the organization membership in the signed session. Category and candidate mutations require an organization owner or event administrator. Payment access requires an organization owner or finance administrator.
@@ -266,6 +284,13 @@ The Prisma schema is in `prisma/schema.prisma` and includes:
 - Vote orders and payments
 - Vote transactions and adjustments
 - Audit and webhook logs
+- Superadmin wallets, append-only financial ledger, payout recipients, and withdrawals
+
+Each event stores its own platform-fee percentage as integer basis points. A
+verified vote payment appends a gross `VOTE_EARNING` and a negative
+`PLATFORM_FEE` entry to the organization superadmin's currency wallet. Wallet
+balances are derived from signed ledger entries; withdrawals reserve funds
+with a negative entry and failures or rejections append a reversal.
 
 Audit logs remain active for 90 days. A daily retention worker then archives them,
 keeps archived records for one year, and permanently deletes records after that

@@ -22,6 +22,14 @@ const mobileMoneyResponseSchema = z.object({
   status: z.boolean(), message: z.string(),
   data: z.object({ reference: z.string(), status: z.string(), display_text: z.string().optional() }),
 });
+const recipientResponseSchema = z.object({ status: z.boolean(), data: z.object({ recipient_code: z.string() }) });
+const transferResponseSchema = z.object({ status: z.boolean(), data: z.object({ transfer_code: z.string(), reference: z.string(), status: z.string() }) });
+const balanceResponseSchema = z.object({ status: z.boolean(), data: z.array(z.object({ currency: z.string(), balance: z.number().int() })) });
+const bankListResponseSchema = z.object({ status: z.boolean(), data: z.array(z.object({ name: z.string(), code: z.string(), active: z.boolean().optional() })) });
+const accountResolutionResponseSchema = z.object({
+  status: z.boolean(),
+  data: z.object({ account_number: z.string(), account_name: z.string().trim().min(1) }),
+});
 
 export function isValidPaystackSignature(rawBody: Buffer, signature: string | undefined, secretKey: string): boolean {
   if (!signature || !/^[a-f0-9]{128}$/i.test(signature)) return false;
@@ -111,6 +119,45 @@ export class PaystackProvider implements PaymentProvider {
 
   async getTransaction(reference: string) {
     return this.verifyPayment(reference);
+  }
+
+  async createTransferRecipient(input: { type: string; name: string; accountNumber: string; bankCode: string; currency: string }) {
+    const raw = await this.request('/transferrecipient', { method: 'POST', body: JSON.stringify({ type: input.type, name: input.name, account_number: input.accountNumber, bank_code: input.bankCode, currency: input.currency }) });
+    const response = recipientResponseSchema.parse(raw);
+    return response.data.recipient_code;
+  }
+
+  async initiateTransfer(input: { amount: number; recipientCode: string; reference: string; reason: string; currency: string }) {
+    const raw = await this.request('/transfer', { method: 'POST', body: JSON.stringify({ source: 'balance', amount: input.amount, recipient: input.recipientCode, reference: input.reference, reason: input.reason, currency: input.currency }) });
+    const response = transferResponseSchema.parse(raw);
+    if (response.data.reference !== input.reference) throw new AppError(502, 'TRANSFER_REFERENCE_MISMATCH', 'Payment provider returned an unexpected transfer reference.');
+    return { transferCode: response.data.transfer_code, status: response.data.status };
+  }
+
+  async finalizeTransfer(transferCode: string, otp: string) {
+    const raw = await this.request('/transfer/finalize_transfer', { method: 'POST', body: JSON.stringify({ transfer_code: transferCode, otp }) });
+    const response = transferResponseSchema.parse(raw);
+    return { transferCode: response.data.transfer_code, status: response.data.status };
+  }
+
+  async getBalance() {
+    const response = balanceResponseSchema.parse(await this.request('/balance'));
+    return response.data;
+  }
+
+  async listTransferProviders(type: 'mobile_money' | 'ghipss', currency = 'GHS') {
+    const query = new URLSearchParams({ currency, type });
+    const response = bankListResponseSchema.parse(await this.request(`/bank?${query.toString()}`));
+    return response.data.filter((item) => item.active !== false).map(({ name, code }) => ({ name, code }));
+  }
+
+  async resolveTransferAccount(accountNumber: string, bankCode: string) {
+    const query = new URLSearchParams({ account_number: accountNumber, bank_code: bankCode });
+    const response = accountResolutionResponseSchema.safeParse(await this.request(`/bank/resolve?${query.toString()}`));
+    if (!response.success || !response.data.status) {
+      throw new AppError(422, 'ACCOUNT_RESOLUTION_FAILED', 'Paystack did not return a registered name for this account or mobile-money number.');
+    }
+    return { accountNumber: response.data.data.account_number, accountName: response.data.data.account_name };
   }
 }
 

@@ -44,6 +44,7 @@ import {
   PaymentsRoute,
   SettingsRoute,
   LoginPortalRoute,
+  FinancialRoute,
 } from "./pages/OrganizerAdminPages.jsx";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
@@ -1456,6 +1457,7 @@ function App() {
         <Route path="/dashboard/settings" element={<SettingsRoute />} />
         <Route path="/dashboard/audit-logs" element={<AuditLogsRoute />} />
         <Route path="/dashboard/administrators" element={<AdministratorsRoute />} />
+        <Route path="/dashboard/financial" element={<FinancialRoute />} />
         <Route path="/dashboard/transactions" element={<PaymentsRoute />} />
         <Route path="*" element={<PlaceholderPage />} />
       </Routes>

@@ -38,6 +38,7 @@ const eventSchema = z.object({
   timezone: z.string().trim().min(2).max(60),
   currency: z.string().trim().length(3).transform((value) => value.toUpperCase()),
   defaultVotePrice: z.number().int().positive(),
+  platformFeeBps: z.number().int().min(0).max(10_000),
   minimumVotes: z.number().int().positive(),
   maximumVotesPerTransaction: z.number().int().positive(),
   webVotingEnabled: z.boolean(),
@@ -55,6 +56,7 @@ const eventPatchSchema = z.object({
   startAt: z.coerce.date(), endAt: z.coerce.date(), timezone: z.string().trim().min(2).max(60),
   currency: z.string().trim().length(3).transform((value) => value.toUpperCase()),
   defaultVotePrice: z.number().int().positive(), minimumVotes: z.number().int().positive(),
+  platformFeeBps: z.number().int().min(0).max(10_000),
   maximumVotesPerTransaction: z.number().int().positive(), webVotingEnabled: z.boolean(), ussdVotingEnabled: z.boolean(),
   resultsVisibility: z.enum(['EXACT_TOTALS', 'PERCENTAGES', 'RANKING_ONLY', 'HIDDEN_UNTIL_END', 'ADMIN_ONLY', 'MANUAL_RELEASE']),
   bannerUrl: z.string().trim().max(300),
@@ -67,7 +69,7 @@ function slugify(value: string) {
 organizerRouter.get('/context', async (req, res, next) => {
   try {
     const auth = (req as AuthenticatedRequest).auth;
-    const events = await prisma.event.findMany({ where: { ...eventAccessWhere(auth), status: { not: EventStatus.ARCHIVED } }, select: { id: true, name: true, description: true, status: true, bannerUrl: true, startAt: true, endAt: true, timezone: true, currency: true, defaultVotePrice: true, minimumVotes: true, maximumVotesPerTransaction: true, webVotingEnabled: true, ussdVotingEnabled: true, resultsVisibility: true }, orderBy: { createdAt: 'desc' } });
+    const events = await prisma.event.findMany({ where: { ...eventAccessWhere(auth), status: { not: EventStatus.ARCHIVED } }, select: { id: true, name: true, description: true, status: true, bannerUrl: true, startAt: true, endAt: true, timezone: true, currency: true, defaultVotePrice: true, platformFeeBps: true, minimumVotes: true, maximumVotesPerTransaction: true, webVotingEnabled: true, ussdVotingEnabled: true, resultsVisibility: true }, orderBy: { createdAt: 'desc' } });
     res.json({ success: true, data: { events } });
   } catch (error) { next(error); }
 });
@@ -171,6 +173,7 @@ organizerRouter.patch('/events/:id', requireRoles(...managerRoles), async (req, 
       startAt: input.startAt ?? current.startAt, endAt: input.endAt ?? current.endAt,
       timezone: input.timezone ?? current.timezone, currency: input.currency ?? current.currency,
       defaultVotePrice: input.defaultVotePrice ?? current.defaultVotePrice,
+      platformFeeBps: input.platformFeeBps ?? current.platformFeeBps,
       minimumVotes: input.minimumVotes ?? current.minimumVotes,
       maximumVotesPerTransaction: input.maximumVotesPerTransaction ?? current.maximumVotesPerTransaction,
       webVotingEnabled: input.webVotingEnabled ?? current.webVotingEnabled,

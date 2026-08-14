@@ -2,6 +2,7 @@ import { PaymentProviderName, PaymentStatus, Prisma, VoteStatus } from '@prisma/
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../errors/app-error.js';
 import type { VerifiedPayment } from '../payments/payment-provider.js';
+import { recordVoteEarnings } from './wallet.service.js';
 
 export async function creditVerifiedPayment(
   provider: PaymentProviderName,
@@ -12,7 +13,7 @@ export async function creditVerifiedPayment(
   try {
     return await prisma.$transaction(
       async (tx) => {
-        const order = await tx.voteOrder.findUnique({ where: { paymentReference: verified.reference } });
+        const order = await tx.voteOrder.findUnique({ where: { paymentReference: verified.reference }, include: { event: { select: { platformFeeBps: true } } } });
         if (!order) throw new AppError(404, 'ORDER_NOT_FOUND', 'Vote order was not found.');
 
         // The unique order/payment/transaction constraints make provider retries idempotent.
@@ -59,6 +60,7 @@ export async function creditVerifiedPayment(
             paymentReference: order.paymentReference,
           },
         });
+        await recordVoteEarnings(tx, { organizationId: order.organizationId, eventId: order.eventId, paymentId: payment.id, paymentReference: order.paymentReference, amount: order.amount, currency: order.currency, platformFeeBps: order.event.platformFeeBps });
         await tx.candidate.update({
           where: { id: order.candidateId },
           data: { cachedVoteCount: { increment: order.quantity } },

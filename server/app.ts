@@ -16,6 +16,7 @@ import { voteOrdersRouter } from './routes/vote-orders.routes.js';
 import { ussdRouter } from './routes/ussd.routes.js';
 import { webhookRouter } from './routes/webhook.routes.js';
 import { distributedRateLimit } from './middleware/rate-limit.js';
+import { financialRouter } from './routes/financial.routes.js';
 import { strictTransportSecurity } from './security/http-headers.js';
 
 export const app = express();
@@ -107,6 +108,7 @@ app.use(
 );
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/organizer', organizerRouter);
+app.use('/api/v1/superadmin/financial', distributedRateLimit('financial', { windowMs: 60_000, limit: 30 }), financialRouter);
 app.use(
   '/api/v1/public/candidate-images',
   express.static(path.resolve(process.cwd(), 'uploads', 'candidates'), {

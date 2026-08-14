@@ -40,6 +40,7 @@ const emptyDraft = {
   timezone: 'Africa/Accra',
   currency: 'GHS',
   votePrice: '1.00',
+  platformFeePercent: '',
   minimumVotes: '1',
   maximumVotes: '500',
   webVotingEnabled: true,
@@ -123,6 +124,8 @@ export default function CreateEventPage() {
     if (step === 2) {
       if (Number(draft.votePrice) <= 0)
         nextErrors.votePrice = 'Vote price must be greater than zero.';
+      if (draft.platformFeePercent === '' || Number(draft.platformFeePercent) < 0 || Number(draft.platformFeePercent) > 100)
+        nextErrors.platformFeePercent = 'Enter a platform fee from 0 to 100 percent.';
       if (
         !Number.isInteger(Number(draft.minimumVotes)) ||
         Number(draft.minimumVotes) < 1
@@ -189,6 +192,7 @@ export default function CreateEventPage() {
           timezone: draft.timezone,
           currency: draft.currency,
           defaultVotePrice: Math.round(Number(draft.votePrice) * 100),
+          platformFeeBps: Math.round(Number(draft.platformFeePercent) * 100),
           minimumVotes: Number(draft.minimumVotes),
           maximumVotesPerTransaction: Number(draft.maximumVotes),
           webVotingEnabled: draft.webVotingEnabled,
@@ -564,6 +568,11 @@ export default function CreateEventPage() {
                   <FieldError>{errors.minimumVotes}</FieldError>
                 </div>
                 <div className="field-group">
+                  <label htmlFor="platform-fee">Platform fee (%)</label>
+                  <input id="platform-fee" type="number" min="0" max="100" step="0.01" value={draft.platformFeePercent} onChange={(event) => update('platformFeePercent', event.target.value)} placeholder="Set for this event" />
+                  <FieldError>{errors.platformFeePercent}</FieldError>
+                </div>
+                <div className="field-group">
                   <label htmlFor="maximum-votes">Maximum per transaction</label>
                   <input
                     id="maximum-votes"
@@ -676,6 +685,7 @@ export default function CreateEventPage() {
                   label="Vote limits"
                   value={`${draft.minimumVotes} – ${draft.maximumVotes} votes`}
                 />
+                <ReviewItem icon={ReceiptText} label="Platform fee" value={`${Number(draft.platformFeePercent || 0).toFixed(2)}%`} />
                 <ReviewItem
                   icon={Settings2}
                   label="Channels"

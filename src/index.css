@@ -4462,7 +4462,7 @@ h3 {
     grid-template-columns: repeat(6, 1fr);
   }
   .mobile-admin-nav.is-superadmin {
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(8, 1fr);
   }
   .mobile-admin-nav.is-event-admin {
     grid-template-columns: repeat(4, 1fr);
@@ -4484,6 +4484,68 @@ h3 {
     width: 19px;
     height: 19px;
   }
+}
+.admin-inline-feedback {
+  padding: 10px 12px;
+  border: 1px solid #b8d8c4;
+  border-radius: 6px;
+  color: #175c32;
+  background: #f0faf3;
+  font-size: 11px;
+}
+.admin-inline-feedback.error {
+  border-color: #efbdc4;
+  color: #8d1e30;
+  background: #fff3f5;
+}
+.financial-paystack-balance {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 18px 0 28px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+.financial-paystack-balance span { font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.financial-paystack-balance strong { margin-left: auto; }
+.financial-paystack-balance small { color: var(--muted); }
+.financial-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.financial-form-grid .administrator-registration { display: flex; flex-direction: column; margin-bottom: 28px; }
+.financial-withdrawal-form {
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 17px;
+  margin: 0 auto 28px;
+  padding: 28px;
+  border: 1px solid #dfe3e5;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(24, 32, 38, 0.08);
+}
+.financial-withdrawal-form > *,
+.financial-withdrawal-form .admin-form-row,
+.financial-withdrawal-form .admin-form-row > * {
+  width: 100%;
+}
+.financial-withdrawal-form .admin-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 17px;
+}
+.financial-withdrawal-form .primary-action,
+.financial-withdrawal-form .secondary-action {
+  width: 100%;
+}
+.ledger-credit { color: #14623a !important; font-weight: 800; }
+.ledger-debit { color: #8f2330 !important; font-weight: 800; }
+@media (max-width: 800px) {
+  .financial-form-grid { grid-template-columns: 1fr; }
+  .financial-paystack-balance { align-items: flex-start; flex-direction: column; }
+  .financial-paystack-balance strong { margin-left: 0; }
 }
 @media (max-width: 560px) {
   .event-payment-grid {

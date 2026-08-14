@@ -3,7 +3,7 @@ import { PaymentProviderName } from '@prisma/client';
 import { Router } from 'express';
 import { prisma } from '../db/prisma.js';
 import { paystackProvider } from '../payments/paystack.provider.js';
-import { processPaystackWebhookLog, scheduleWebhookRetry } from '../services/webhook-processing.service.js';
+import { processPaystackTransferWebhook, processPaystackWebhookLog, scheduleWebhookRetry } from '../services/webhook-processing.service.js';
 
 export const webhookRouter = Router();
 
@@ -17,6 +17,11 @@ webhookRouter.post('/paystack', async (req, res, next) => {
   if (!signatureValid) {
     await prisma.webhookLog.update({ where: { id: log.id }, data: { processed: true, processingResult: 'INVALID_SIGNATURE', processedAt: new Date() } });
     res.status(401).json({ success: false, error: { code: 'INVALID_SIGNATURE', message: 'Invalid webhook signature.' } });
+    return;
+  }
+  if (['transfer.success', 'transfer.failed', 'transfer.reversed'].includes(event.event || '') && event.data?.reference) {
+    try { await processPaystackTransferWebhook(log.id, event.event!, event.data.reference); } catch (error) { next(error); return; }
+    res.sendStatus(200);
     return;
   }
   if (event.event !== 'charge.success' || !event.data?.reference) {

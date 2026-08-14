@@ -11,6 +11,7 @@ import {
   startAuditRetentionWorker,
   stopAuditRetentionWorker,
 } from './workers/audit-retention.worker.js';
+import { startFinancialReconciliationWorker, stopFinancialReconciliationWorker } from './workers/financial-reconciliation.worker.js';
 
 await connectRedis();
 const server = app.listen(env.API_PORT, () => {
@@ -18,12 +19,14 @@ const server = app.listen(env.API_PORT, () => {
 });
 startWebhookRetryWorker();
 startAuditRetentionWorker();
+startFinancialReconciliationWorker();
 
 async function shutdown(signal: string) {
   logger.info({ signal }, 'Shutting down API');
   server.close(async () => {
     stopWebhookRetryWorker();
     stopAuditRetentionWorker();
+    stopFinancialReconciliationWorker();
     await disconnectRedis();
     await prisma.$disconnect();
     process.exit(0);
