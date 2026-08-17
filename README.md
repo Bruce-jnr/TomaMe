@@ -257,11 +257,13 @@ Production secrets can be mounted through `*_FILE`, including `SESSION_SECRET_FI
 ### Superadmin financial management
 
 - `GET /api/v1/superadmin/financial/overview`
-- `GET /api/v1/superadmin/financial/ledger`
+- `GET /api/v1/superadmin/financial/paystack-balance`
+- `GET /api/v1/superadmin/financial/ledger?page=1`
 - `POST /api/v1/superadmin/financial/adjustments`
 - `GET|POST /api/v1/superadmin/financial/recipients`
 - `GET /api/v1/superadmin/financial/providers?type=mobile_money|ghipss&currency=GHS`
-- `GET|POST /api/v1/superadmin/financial/withdrawals`
+- `GET /api/v1/superadmin/financial/withdrawals?page=1`
+- `POST /api/v1/superadmin/financial/withdrawals`
 - `POST /api/v1/superadmin/financial/withdrawals/:id/approve`
 - `POST /api/v1/superadmin/financial/withdrawals/:id/reject`
 - `POST /api/v1/superadmin/financial/withdrawals/:id/process`
@@ -271,6 +273,9 @@ Mutating financial routes require the configured `APP_URL` origin. Withdrawal
 creation also requires an `Idempotency-Key`, and transfer processing requires
 the superadmin's current password. Paystack transfer webhooks finalize or
 reverse reservations after signature verification.
+Paystack balances are cached for two minutes and payout-provider lists for five
+minutes. Ledger and withdrawal history are paginated and loaded independently
+from the wallet overview.
 - `GET /api/v1/organizer/payments`
 
 All organizer queries are scoped by the organization membership in the signed session. Category and candidate mutations require an organization owner or event administrator. Payment access requires an organization owner or finance administrator.

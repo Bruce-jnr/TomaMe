@@ -390,6 +390,7 @@ model LedgerEntry {
   createdAt   DateTime        @default(now())
 
   @@index([walletId, createdAt])
+  @@index([walletId, type, createdAt])
   @@index([eventId, createdAt])
   @@index([paymentId])
 }
