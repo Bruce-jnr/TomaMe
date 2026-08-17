@@ -2899,7 +2899,8 @@ function FinancialManagementPage({ session }) {
   }, [recipientType]);
 
   async function resolveRecipient() {
-    if (recipientType === 'mobile_money' || !providerCode || !accountNumber) return;
+    if (recipientType === 'mobile_money' || !providerCode || !accountNumber)
+      return;
     setAccountResolving(true);
     setAccountName('');
     setVerifyFeedback(null);
@@ -2916,7 +2917,10 @@ function FinancialManagementPage({ session }) {
         },
       );
       setAccountName(resolved.accountName);
-      setVerifyFeedback({ type: 'success', message: `Destination verified as ${resolved.accountName}.` });
+      setVerifyFeedback({
+        type: 'success',
+        message: `Destination verified as ${resolved.accountName}.`,
+      });
     } catch (error) {
       setVerifyFeedback({ type: 'error', message: error.message });
     } finally {
@@ -2948,7 +2952,10 @@ function FinancialManagementPage({ session }) {
       setProviderCode('');
       setVerifyFeedback(null);
       await load();
-      setWithdrawalFeedback({ type: 'success', message: 'Withdrawal created from the selected event revenue.' });
+      setWithdrawalFeedback({
+        type: 'success',
+        message: 'Withdrawal created from the selected event revenue.',
+      });
     } catch (error) {
       setWithdrawalFeedback({ type: 'error', message: error.message });
     }
@@ -2984,7 +2991,10 @@ function FinancialManagementPage({ session }) {
           );
       }
       await load();
-      setActionFeedback({ type: 'success', message: `Withdrawal ${action} action completed.` });
+      setActionFeedback({
+        type: 'success',
+        message: `Withdrawal ${action} action completed.`,
+      });
     } catch (error) {
       setActionFeedback({ type: 'error', message: error.message });
     }
@@ -3115,6 +3125,11 @@ function FinancialManagementPage({ session }) {
               name="accountNumber"
               required
               inputMode="numeric"
+              placeholder={
+                recipientType === 'mobile_money'
+                  ? '0241234567'
+                  : 'Account number'
+              }
               value={accountNumber}
               onChange={(event) => {
                 setAccountNumber(event.target.value);
@@ -3129,15 +3144,41 @@ function FinancialManagementPage({ session }) {
             <input name="amount" type="number" min="1" step="0.01" required />
           </label>
         </div>
-        {recipientType === 'ghipss' && <button className="secondary-action" type="button" onClick={resolveRecipient} disabled={!providerCode || !accountNumber || accountResolving}>{accountResolving ? 'Verifying...' : 'Verify destination'}</button>}
-        {verifyFeedback && <div className={`admin-inline-feedback ${verifyFeedback.type}`} role={verifyFeedback.type === 'error' ? 'alert' : 'status'}>{verifyFeedback.message}</div>}
+        {recipientType === 'ghipss' && (
+          <button
+            className="secondary-action"
+            type="button"
+            onClick={resolveRecipient}
+            disabled={!providerCode || !accountNumber || accountResolving}
+          >
+            {accountResolving ? 'Verifying...' : 'Verify destination'}
+          </button>
+        )}
+        {verifyFeedback && (
+          <div
+            className={`admin-inline-feedback ${verifyFeedback.type}`}
+            role={verifyFeedback.type === 'error' ? 'alert' : 'status'}
+          >
+            {verifyFeedback.message}
+          </div>
+        )}
         <label>
-          {recipientType === 'mobile_money' ? 'Registered mobile-money name' : 'Verified recipient name'}
+          {recipientType === 'mobile_money'
+            ? 'Registered mobile-money name'
+            : 'Verified recipient name'}
           <input
             value={accountName}
             readOnly={recipientType === 'ghipss'}
-            onChange={recipientType === 'mobile_money' ? (event) => setAccountName(event.target.value) : undefined}
-            placeholder={recipientType === 'mobile_money' ? 'Enter the name registered to this number' : 'Verify the destination to fetch its registered name'}
+            onChange={
+              recipientType === 'mobile_money'
+                ? (event) => setAccountName(event.target.value)
+                : undefined
+            }
+            placeholder={
+              recipientType === 'mobile_money'
+                ? 'Enter the name registered to this number'
+                : 'Verify the destination to fetch its registered name'
+            }
           />
         </label>
         <button
@@ -3155,7 +3196,14 @@ function FinancialManagementPage({ session }) {
         >
           Make withdrawal
         </button>
-        {withdrawalFeedback && <div className={`admin-inline-feedback ${withdrawalFeedback.type}`} role={withdrawalFeedback.type === 'error' ? 'alert' : 'status'}>{withdrawalFeedback.message}</div>}
+        {withdrawalFeedback && (
+          <div
+            className={`admin-inline-feedback ${withdrawalFeedback.type}`}
+            role={withdrawalFeedback.type === 'error' ? 'alert' : 'status'}
+          >
+            {withdrawalFeedback.message}
+          </div>
+        )}
       </form>
       <div className="section-heading">
         <div>
@@ -3163,7 +3211,14 @@ function FinancialManagementPage({ session }) {
           <h2>Withdrawals</h2>
         </div>
       </div>
-      {actionFeedback && <div className={`admin-inline-feedback ${actionFeedback.type}`} role={actionFeedback.type === 'error' ? 'alert' : 'status'}>{actionFeedback.message}</div>}
+      {actionFeedback && (
+        <div
+          className={`admin-inline-feedback ${actionFeedback.type}`}
+          role={actionFeedback.type === 'error' ? 'alert' : 'status'}
+        >
+          {actionFeedback.message}
+        </div>
+      )}
       {withdrawals.length ? (
         <div className="candidate-table-wrap">
           <table className="admin-table">

@@ -56,7 +56,10 @@ export class PaystackProvider implements PaymentProvider {
         signal: AbortSignal.timeout(15_000),
       });
       const payload: unknown = await response.json().catch(() => null);
-      if (!response.ok) throw new AppError(502, 'PAYMENT_PROVIDER_ERROR', 'Payment provider request failed.');
+      if (!response.ok) {
+        const providerError = z.object({ message: z.string().trim().min(1) }).safeParse(payload);
+        throw new AppError(502, 'PAYMENT_PROVIDER_ERROR', providerError.success ? `Paystack: ${providerError.data.message}` : 'Payment provider request failed.');
+      }
       return payload;
     } catch (error) {
       if (error instanceof AppError) throw error;

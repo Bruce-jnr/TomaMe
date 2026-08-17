@@ -23,6 +23,15 @@ async function ownedWallet(userId: string, currency = 'GHS') {
   return prisma.wallet.upsert({ where: { userId_currency: { userId, currency } }, create: { userId, currency }, update: {} });
 }
 
+function payoutAccountNumber(type: 'mobile_money' | 'ghipss', value: string) {
+  const digits = value.replace(/^\+/, '');
+  if (type !== 'mobile_money') return digits;
+  if (/^233\d{9}$/.test(digits)) return `0${digits.slice(3)}`;
+  if (/^\d{9}$/.test(digits)) return `0${digits}`;
+  if (/^0\d{9}$/.test(digits)) return digits;
+  throw new AppError(422, 'INVALID_GHANA_MOBILE_NUMBER', 'Enter a valid 10-digit Ghana mobile-money number.');
+}
+
 financialRouter.get('/overview', async (req, res, next) => {
   try {
     const auth = (req as AuthenticatedRequest).auth;
@@ -89,7 +98,7 @@ financialRouter.post('/recipients/resolve', async (req, res, next) => {
       bankCode: z.string().trim().min(2).max(30),
     }).parse(req.body);
     if (input.type === 'mobile_money') throw new AppError(422, 'MOBILE_MONEY_NAME_NOT_RESOLVABLE', 'Paystack does not provide recipient-name resolution for Ghana mobile-money numbers. Enter the registered account name instead.');
-    const accountNumber = input.accountNumber.replace(/^\+/, '');
+    const accountNumber = payoutAccountNumber(input.type, input.accountNumber);
     const resolved = await paystackProvider.resolveTransferAccount(accountNumber, input.bankCode);
     res.json({ success: true, data: { ...resolved, type: input.type } });
   } catch (error) { next(error); }
@@ -99,7 +108,7 @@ financialRouter.post('/recipients', async (req, res, next) => {
   try {
     const auth = (req as AuthenticatedRequest).auth;
     const input = z.object({ name: z.string().trim().min(2).max(100).optional(), type: z.enum(['mobile_money', 'ghipss']), accountNumber: z.string().trim().regex(/^\+?[0-9]{6,20}$/), bankCode: z.string().trim().min(2).max(30), currency: z.string().length(3).default('GHS') }).parse(req.body);
-    const accountNumber = input.accountNumber.replace(/^\+/, '');
+    const accountNumber = payoutAccountNumber(input.type, input.accountNumber);
     const accountName = input.type === 'mobile_money' ? input.name : (await paystackProvider.resolveTransferAccount(accountNumber, input.bankCode)).accountName;
     if (!accountName) throw new AppError(422, 'RECIPIENT_NAME_REQUIRED', 'Enter the name registered to this mobile-money number.');
     const wallet = await ownedWallet(auth.userId, input.currency.toUpperCase());
@@ -130,7 +139,7 @@ financialRouter.post('/withdrawals', async (req, res, next) => {
     if (existing) { res.json({ success: true, data: existing }); return; }
     const event = await prisma.event.findFirst({ where: { id: input.eventId, organizationId: auth.organizationId }, select: { id: true, currency: true } });
     if (!event) throw new AppError(404, 'EVENT_NOT_FOUND', 'The selected event was not found.');
-    const accountNumber = input.accountNumber.replace(/^\+/, '');
+    const accountNumber = payoutAccountNumber(input.type, input.accountNumber);
     const accountName = input.type === 'mobile_money' ? input.name : (await paystackProvider.resolveTransferAccount(accountNumber, input.bankCode)).accountName;
     if (!accountName) throw new AppError(422, 'RECIPIENT_NAME_REQUIRED', 'Enter the name registered to this mobile-money number.');
     const recipientCode = await paystackProvider.createTransferRecipient({ ...input, name: accountName, accountNumber, currency: event.currency });
