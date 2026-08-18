@@ -47,10 +47,14 @@ import {
   FinancialRoute,
 } from "./pages/OrganizerAdminPages.jsx";
 
-const API_URL = import.meta.env.VITE_API_URL || "";
+const API_URL = import.meta.env.VITE_API_URL;
+
+function publicApiUrl(path) {
+  return API_URL ? `${API_URL.replace(/\/$/, "")}${path}` : path;
+}
 
 async function getJson(path, signal) {
-  const response = await fetch(`${API_URL}${path}`, { signal });
+  const response = await fetch(publicApiUrl(path), { signal });
   const payload = await response.json().catch(() => null);
   if (!response.ok || !payload?.success)
     throw new Error(
@@ -80,7 +84,8 @@ function Shell({ children }) {
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
     if (!menuOpen) return undefined;
-    const closeOnEscape = (event) => event.key === "Escape" && setMenuOpen(false);
+    const closeOnEscape = (event) =>
+      event.key === "Escape" && setMenuOpen(false);
     document.addEventListener("keydown", closeOnEscape);
     document.body.style.overflow = "hidden";
     return () => {
@@ -116,16 +121,52 @@ function Shell({ children }) {
         </div>
       </header>
       {menuOpen && (
-        <div className="mobile-menu-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setMenuOpen(false)}>
-          <aside className="mobile-menu-panel" id="mobile-menu" aria-label="Site menu">
-            <header><img src={logo} alt="TomaMe" /><button className="icon-button" type="button" aria-label="Close menu" title="Close menu" onClick={() => setMenuOpen(false)}><X /></button></header>
+        <div
+          className="mobile-menu-backdrop"
+          onMouseDown={(event) =>
+            event.target === event.currentTarget && setMenuOpen(false)
+          }
+        >
+          <aside
+            className="mobile-menu-panel"
+            id="mobile-menu"
+            aria-label="Site menu"
+          >
+            <header>
+              <img src={logo} alt="TomaMe" />
+              <button
+                className="icon-button"
+                type="button"
+                aria-label="Close menu"
+                title="Close menu"
+                onClick={() => setMenuOpen(false)}
+              >
+                <X />
+              </button>
+            </header>
             <nav>
-              <Link to="/" onClick={() => setMenuOpen(false)}>Home <ChevronRight /></Link>
-              <Link to="/events" onClick={() => setMenuOpen(false)}>Explore events <ChevronRight /></Link>
-              <Link className="mobile-organizer-menu-link" to="/organizers" onClick={() => setMenuOpen(false)}>For organizers <ChevronRight /></Link>
-              <Link to="/#faq" onClick={() => setMenuOpen(false)}>FAQ <ChevronRight /></Link>
-              <Link to="/privacy" onClick={() => setMenuOpen(false)}>Privacy Policy <ChevronRight /></Link>
-              <Link to="/terms" onClick={() => setMenuOpen(false)}>Terms &amp; Conditions <ChevronRight /></Link>
+              <Link to="/" onClick={() => setMenuOpen(false)}>
+                Home <ChevronRight />
+              </Link>
+              <Link to="/events" onClick={() => setMenuOpen(false)}>
+                Explore events <ChevronRight />
+              </Link>
+              <Link
+                className="mobile-organizer-menu-link"
+                to="/organizers"
+                onClick={() => setMenuOpen(false)}
+              >
+                For organizers <ChevronRight />
+              </Link>
+              <Link to="/#faq" onClick={() => setMenuOpen(false)}>
+                FAQ <ChevronRight />
+              </Link>
+              <Link to="/privacy" onClick={() => setMenuOpen(false)}>
+                Privacy Policy <ChevronRight />
+              </Link>
+              <Link to="/terms" onClick={() => setMenuOpen(false)}>
+                Terms &amp; Conditions <ChevronRight />
+              </Link>
             </nav>
           </aside>
         </div>
@@ -258,11 +299,26 @@ function EventCard({ event, featured = false }) {
 
 function LoadingCards() {
   return (
-    <div className="event-grid skeleton-event-grid" aria-label="Loading events" aria-busy="true">
-      {[0, 1, 2].map((item) => <article className="event-card skeleton-event-card" key={item} aria-hidden="true">
-        <div className="skeleton-block skeleton-event-image" />
-        <div className="event-content"><span className="skeleton-line short" /><span className="skeleton-line title" /><span className="skeleton-line" /><span className="skeleton-line medium" /></div>
-      </article>)}
+    <div
+      className="event-grid skeleton-event-grid"
+      aria-label="Loading events"
+      aria-busy="true"
+    >
+      {[0, 1, 2].map((item) => (
+        <article
+          className="event-card skeleton-event-card"
+          key={item}
+          aria-hidden="true"
+        >
+          <div className="skeleton-block skeleton-event-image" />
+          <div className="event-content">
+            <span className="skeleton-line short" />
+            <span className="skeleton-line title" />
+            <span className="skeleton-line" />
+            <span className="skeleton-line medium" />
+          </div>
+        </article>
+      ))}
     </div>
   );
 }
@@ -276,25 +332,46 @@ function ErrorState({ message }) {
   );
 }
 
-function ScrollReveal({ children, className = "", delay = 0, as: Element = "div", ...props }) {
+function ScrollReveal({
+  children,
+  className = "",
+  delay = 0,
+  as: Element = "div",
+  ...props
+}) {
   const ref = useRef(null);
   useEffect(() => {
     const node = ref.current;
     if (!node) return undefined;
-    if (!("IntersectionObserver" in window) || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (
+      !("IntersectionObserver" in window) ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
       node.classList.add("is-revealed");
       return undefined;
     }
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        node.classList.add("is-revealed");
-        observer.unobserve(node);
-      }
-    }, { threshold: 0.12, rootMargin: "0px 0px -48px" });
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          node.classList.add("is-revealed");
+          observer.unobserve(node);
+        }
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -48px" },
+    );
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
-  return <Element {...props} ref={ref} className={`scroll-reveal ${className}`.trim()} style={{ "--reveal-delay": `${delay}ms`, ...props.style }}>{children}</Element>;
+  return (
+    <Element
+      {...props}
+      ref={ref}
+      className={`scroll-reveal ${className}`.trim()}
+      style={{ "--reveal-delay": `${delay}ms`, ...props.style }}
+    >
+      {children}
+    </Element>
+  );
 }
 
 function HomePage() {
@@ -339,7 +416,9 @@ function HomePage() {
         ) : events.data.length ? (
           <div className="event-grid">
             {events.data.slice(0, 3).map((event, index) => (
-              <ScrollReveal key={event.id} delay={index * 80}><EventCard event={event} featured /></ScrollReveal>
+              <ScrollReveal key={event.id} delay={index * 80}>
+                <EventCard event={event} featured />
+              </ScrollReveal>
             ))}
           </div>
         ) : (
@@ -381,27 +460,48 @@ function HomePage() {
         <ScrollReveal className="faq-list" delay={80}>
           <details>
             <summary>Do I need an account to vote?</summary>
-            <p>No. You can vote using your mobile number without creating a TomaMe account.</p>
+            <p>
+              No. You can vote using your mobile number without creating a
+              TomaMe account.
+            </p>
           </details>
           <details>
             <summary>When are my votes counted?</summary>
-            <p>Votes are credited only after the payment provider confirms the correct amount and currency. A failed or abandoned payment does not add votes.</p>
+            <p>
+              Votes are credited only after the payment provider confirms the
+              correct amount and currency. A failed or abandoned payment does
+              not add votes.
+            </p>
           </details>
           <details>
             <summary>Can a successful payment add votes twice?</summary>
-            <p>No. Each payment reference can create only one vote transaction, including when a provider sends the same confirmation more than once.</p>
+            <p>
+              No. Each payment reference can create only one vote transaction,
+              including when a provider sends the same confirmation more than
+              once.
+            </p>
           </details>
           <details>
             <summary>Why might voting be unavailable?</summary>
-            <p>An event may not have started, may have ended, or may be temporarily paused by its organizer.</p>
+            <p>
+              An event may not have started, may have ended, or may be
+              temporarily paused by its organizer.
+            </p>
           </details>
           <details>
             <summary>Does TomaMe collect my Mobile Money PIN?</summary>
-            <p>No. PIN entry and payment authorization happen securely through your mobile network or payment provider.</p>
+            <p>
+              No. PIN entry and payment authorization happen securely through
+              your mobile network or payment provider.
+            </p>
           </details>
           <details>
             <summary>Who controls event information and results?</summary>
-            <p>The event organizer manages contestants, schedules, pricing, and result visibility. TomaMe provides the voting and transaction platform.</p>
+            <p>
+              The event organizer manages contestants, schedules, pricing, and
+              result visibility. TomaMe provides the voting and transaction
+              platform.
+            </p>
           </details>
         </ScrollReveal>
       </section>
@@ -435,7 +535,12 @@ function ExplorePage() {
           Browse live competitions, upcoming events, and recently announced
           results.
         </p>
-        <SearchForm key={`${search}-${focusSearch}`} initialValue={search} compact focus={focusSearch} />
+        <SearchForm
+          key={`${search}-${focusSearch}`}
+          initialValue={search}
+          compact
+          focus={focusSearch}
+        />
       </ScrollReveal>
       <section className="content-section explore-content">
         <ScrollReveal
@@ -473,7 +578,9 @@ function ExplorePage() {
         ) : events.data.length ? (
           <div className="event-grid explore-grid">
             {events.data.map((event, index) => (
-              <ScrollReveal key={event.id} delay={(index % 3) * 80}><EventCard event={event} /></ScrollReveal>
+              <ScrollReveal key={event.id} delay={(index % 3) * 80}>
+                <EventCard event={event} />
+              </ScrollReveal>
             ))}
           </div>
         ) : (
@@ -546,7 +653,7 @@ function EventDetailPage() {
                 ? `Voting ends ${formatDate(data.endAt)}`
                 : data.publicStatus === "paused"
                   ? "Voting is temporarily paused"
-                : `Voting starts ${formatDate(data.startAt)}`}
+                  : `Voting starts ${formatDate(data.startAt)}`}
             </span>
             <span>
               <Vote />
@@ -563,7 +670,13 @@ function EventDetailPage() {
         {data.publicStatus === "paused" && (
           <div className="voting-paused-notice">
             <AlertCircle />
-            <div><strong>Voting is temporarily paused</strong><span>You can still explore the contestants. Voting will resume when the organizer reopens it.</span></div>
+            <div>
+              <strong>Voting is temporarily paused</strong>
+              <span>
+                You can still explore the contestants. Voting will resume when
+                the organizer reopens it.
+              </span>
+            </div>
           </div>
         )}
         <div className="contestant-heading">
@@ -632,7 +745,13 @@ function EventDetailPage() {
   );
 }
 
-function CategoryContestants({ category, candidates, result, eventStatus, onVote }) {
+function CategoryContestants({
+  category,
+  candidates,
+  result,
+  eventStatus,
+  onVote,
+}) {
   const resultLabel =
     result?.visibility === "EXACT_TOTALS"
       ? `${(result.totalVotes || 0).toLocaleString()} current votes`
@@ -647,7 +766,10 @@ function CategoryContestants({ category, candidates, result, eventStatus, onVote
         <div>
           <span>Category voting statistics</span>
           <h3>{category.name}</h3>
-          <p>{category.description || `${candidates.length} contestants in this category.`}</p>
+          <p>
+            {category.description ||
+              `${candidates.length} contestants in this category.`}
+          </p>
         </div>
         <div className="category-stat-values">
           <span>
@@ -684,7 +806,11 @@ function CategoryContestants({ category, candidates, result, eventStatus, onVote
             return (
               <article className="contestant-card" key={candidate.id}>
                 <div className="contestant-portrait">
-                  {candidate.photoUrl ? <img src={candidate.photoUrl} alt={candidate.name} /> : <span>{initials}</span>}
+                  {candidate.photoUrl ? (
+                    <img src={candidate.photoUrl} alt={candidate.name} />
+                  ) : (
+                    <span>{initials}</span>
+                  )}
                   <b>{candidate.candidateCode}</b>
                   {candidate.result && (
                     <div className="candidate-result">
@@ -702,9 +828,23 @@ function CategoryContestants({ category, candidates, result, eventStatus, onVote
                 <div className="contestant-body">
                   <span>{candidate.category.name}</span>
                   <h3>{candidate.name}</h3>
-                  <p>{candidate.slogan || candidate.biography || "Support this contestant in the event."}</p>
-                  <button className="primary-action" type="button" onClick={() => onVote(candidate)} disabled={eventStatus !== "live"}>
-                    <Vote />{eventStatus === "live" ? "Vote now" : eventStatus === "paused" ? "Voting paused" : "Voting unavailable"}
+                  <p>
+                    {candidate.slogan ||
+                      candidate.biography ||
+                      "Support this contestant in the event."}
+                  </p>
+                  <button
+                    className="primary-action"
+                    type="button"
+                    onClick={() => onVote(candidate)}
+                    disabled={eventStatus !== "live"}
+                  >
+                    <Vote />
+                    {eventStatus === "live"
+                      ? "Vote now"
+                      : eventStatus === "paused"
+                        ? "Voting paused"
+                        : "Voting unavailable"}
                   </button>
                 </div>
               </article>
@@ -712,7 +852,11 @@ function CategoryContestants({ category, candidates, result, eventStatus, onVote
           })}
         </div>
       ) : (
-        <div className="message-state"><Users /><strong>No contestants in this category.</strong><span>Contestants will appear here when added.</span></div>
+        <div className="message-state">
+          <Users />
+          <strong>No contestants in this category.</strong>
+          <span>Contestants will appear here when added.</span>
+        </div>
       )}
     </section>
   );
@@ -888,7 +1032,9 @@ function VoteDialog({ candidate, event, onClose }) {
                 <input
                   type="tel"
                   value={contact.phone}
-                  onChange={(inputEvent) => setContact({ phone: inputEvent.target.value })}
+                  onChange={(inputEvent) =>
+                    setContact({ phone: inputEvent.target.value })
+                  }
                   placeholder="+233 20 000 0000"
                   minLength="7"
                   maxLength="20"
@@ -1402,15 +1548,86 @@ function PrivacyPage() {
   return (
     <Shell>
       <article className="legal-page">
-        <header><span className="eyebrow">Legal</span><h1>Privacy Policy</h1><p>Last updated: 11 August 2026</p></header>
-        <section><h2>Information we collect</h2><p>When you vote, we collect your mobile number, nominee selection, vote quantity, payment reference, payment status, voting channel, and transaction timestamps. We do not collect your Mobile Money PIN.</p><p>Organizer accounts provide identity, contact, organization, event, category, contestant, and uploaded image information.</p></section>
-        <section><h2>How we use information</h2><p>We use this information to create vote orders, process and verify payments, credit votes, prevent duplicate transactions, display permitted results, support organizers, investigate problems, and protect the platform from misuse.</p></section>
-        <section><h2>Payment providers</h2><p>Payments are processed by third-party providers such as Paystack. They receive the information required to authorize and verify a transaction and handle payment credentials under their own privacy terms.</p></section>
-        <section><h2>USSD voting</h2><p>USSD requests include a temporary session identifier, mobile number, network, and menu input. Session data is used to complete the flow and expires after inactivity. Payment confirmation remains independent of the USSD session.</p></section>
-        <section><h2>Sharing and disclosure</h2><p>We share data with payment, mobile-network, messaging, hosting, and infrastructure providers only as needed to operate TomaMe. We may disclose information where required by law or to address fraud, security, or legal claims.</p></section>
-        <section><h2>Retention and security</h2><p>Transaction and audit records may be retained to reconcile votes, resolve disputes, meet legal obligations, and protect platform integrity. We use access controls, organization isolation, payment verification, and audit records, but no online service can guarantee absolute security.</p></section>
-        <section><h2>Your choices</h2><p>You may contact the relevant event organizer about event-submitted information or contact TomaMe regarding platform data. Some transaction records cannot be deleted immediately where they are required for financial reconciliation, fraud prevention, or legal compliance.</p></section>
-        <section><h2>Changes to this policy</h2><p>We may update this policy as the service changes. The effective date above will be revised when material updates are published.</p></section>
+        <header>
+          <span className="eyebrow">Legal</span>
+          <h1>Privacy Policy</h1>
+          <p>Last updated: 11 August 2026</p>
+        </header>
+        <section>
+          <h2>Information we collect</h2>
+          <p>
+            When you vote, we collect your mobile number, nominee selection,
+            vote quantity, payment reference, payment status, voting channel,
+            and transaction timestamps. We do not collect your Mobile Money PIN.
+          </p>
+          <p>
+            Organizer accounts provide identity, contact, organization, event,
+            category, contestant, and uploaded image information.
+          </p>
+        </section>
+        <section>
+          <h2>How we use information</h2>
+          <p>
+            We use this information to create vote orders, process and verify
+            payments, credit votes, prevent duplicate transactions, display
+            permitted results, support organizers, investigate problems, and
+            protect the platform from misuse.
+          </p>
+        </section>
+        <section>
+          <h2>Payment providers</h2>
+          <p>
+            Payments are processed by third-party providers such as Paystack.
+            They receive the information required to authorize and verify a
+            transaction and handle payment credentials under their own privacy
+            terms.
+          </p>
+        </section>
+        <section>
+          <h2>USSD voting</h2>
+          <p>
+            USSD requests include a temporary session identifier, mobile number,
+            network, and menu input. Session data is used to complete the flow
+            and expires after inactivity. Payment confirmation remains
+            independent of the USSD session.
+          </p>
+        </section>
+        <section>
+          <h2>Sharing and disclosure</h2>
+          <p>
+            We share data with payment, mobile-network, messaging, hosting, and
+            infrastructure providers only as needed to operate TomaMe. We may
+            disclose information where required by law or to address fraud,
+            security, or legal claims.
+          </p>
+        </section>
+        <section>
+          <h2>Retention and security</h2>
+          <p>
+            Transaction and audit records may be retained to reconcile votes,
+            resolve disputes, meet legal obligations, and protect platform
+            integrity. We use access controls, organization isolation, payment
+            verification, and audit records, but no online service can guarantee
+            absolute security.
+          </p>
+        </section>
+        <section>
+          <h2>Your choices</h2>
+          <p>
+            You may contact the relevant event organizer about event-submitted
+            information or contact TomaMe regarding platform data. Some
+            transaction records cannot be deleted immediately where they are
+            required for financial reconciliation, fraud prevention, or legal
+            compliance.
+          </p>
+        </section>
+        <section>
+          <h2>Changes to this policy</h2>
+          <p>
+            We may update this policy as the service changes. The effective date
+            above will be revised when material updates are published.
+          </p>
+        </section>
       </article>
     </Shell>
   );
@@ -1420,16 +1637,92 @@ function TermsPage() {
   return (
     <Shell>
       <article className="legal-page">
-        <header><span className="eyebrow">Legal</span><h1>Terms &amp; Conditions</h1><p>Last updated: 11 August 2026</p></header>
-        <section><h2>Using TomaMe</h2><p>By accessing TomaMe or submitting a vote, you agree to these terms. You must provide accurate transaction information, use a payment method you are authorized to use, and comply with applicable law.</p></section>
-        <section><h2>Voting and payments</h2><p>Vote prices, minimum quantities, schedules, contestant eligibility, and result visibility are configured for each event. Review the nominee, quantity, and total before accepting payment. Votes are credited only after successful provider verification.</p></section>
-        <section><h2>Finality and refunds</h2><p>A verified vote is normally final because it affects live event totals. Refunds, reversals, cancellations, or corrections are considered according to the organizer's rules, payment-provider requirements, and applicable law. Contact the event organizer with your payment reference when raising a dispute.</p></section>
-        <section><h2>Organizer responsibilities</h2><p>Organizers are responsible for lawful event operation, accurate event and contestant information, permissions for uploaded content, published rules, prizes, result settings, and responding to participant or voter disputes. Organizers must not manipulate votes or misuse personal information.</p></section>
-        <section><h2>Prohibited conduct</h2><p>You may not interfere with the service, automate unauthorized voting, exploit payment or USSD flows, impersonate others, upload unlawful content, attempt to access another organization, or use TomaMe for fraudulent activity.</p></section>
-        <section><h2>Availability</h2><p>Voting may be unavailable because of schedules, organizer suspension, maintenance, network interruption, or third-party provider failure. We may limit or suspend access to protect users, transactions, and platform integrity.</p></section>
-        <section><h2>Intellectual property</h2><p>TomaMe software, branding, and platform materials remain the property of their respective owners. Organizers retain responsibility for content they submit and grant the permissions necessary to host and display it for their events.</p></section>
-        <section><h2>Liability</h2><p>To the extent permitted by law, TomaMe is not responsible for organizer decisions, event outcomes, prizes, contestant disputes, telecommunications failures, or losses caused by circumstances outside reasonable platform control.</p></section>
-        <section><h2>Changes and contact</h2><p>We may update these terms as the platform changes. Continued use after updated terms are published constitutes acceptance, subject to applicable law.</p></section>
+        <header>
+          <span className="eyebrow">Legal</span>
+          <h1>Terms &amp; Conditions</h1>
+          <p>Last updated: 11 August 2026</p>
+        </header>
+        <section>
+          <h2>Using TomaMe</h2>
+          <p>
+            By accessing TomaMe or submitting a vote, you agree to these terms.
+            You must provide accurate transaction information, use a payment
+            method you are authorized to use, and comply with applicable law.
+          </p>
+        </section>
+        <section>
+          <h2>Voting and payments</h2>
+          <p>
+            Vote prices, minimum quantities, schedules, contestant eligibility,
+            and result visibility are configured for each event. Review the
+            nominee, quantity, and total before accepting payment. Votes are
+            credited only after successful provider verification.
+          </p>
+        </section>
+        <section>
+          <h2>Finality and refunds</h2>
+          <p>
+            A verified vote is normally final because it affects live event
+            totals. Refunds, reversals, cancellations, or corrections are
+            considered according to the organizer's rules, payment-provider
+            requirements, and applicable law. Contact the event organizer with
+            your payment reference when raising a dispute.
+          </p>
+        </section>
+        <section>
+          <h2>Organizer responsibilities</h2>
+          <p>
+            Organizers are responsible for lawful event operation, accurate
+            event and contestant information, permissions for uploaded content,
+            published rules, prizes, result settings, and responding to
+            participant or voter disputes. Organizers must not manipulate votes
+            or misuse personal information.
+          </p>
+        </section>
+        <section>
+          <h2>Prohibited conduct</h2>
+          <p>
+            You may not interfere with the service, automate unauthorized
+            voting, exploit payment or USSD flows, impersonate others, upload
+            unlawful content, attempt to access another organization, or use
+            TomaMe for fraudulent activity.
+          </p>
+        </section>
+        <section>
+          <h2>Availability</h2>
+          <p>
+            Voting may be unavailable because of schedules, organizer
+            suspension, maintenance, network interruption, or third-party
+            provider failure. We may limit or suspend access to protect users,
+            transactions, and platform integrity.
+          </p>
+        </section>
+        <section>
+          <h2>Intellectual property</h2>
+          <p>
+            TomaMe software, branding, and platform materials remain the
+            property of their respective owners. Organizers retain
+            responsibility for content they submit and grant the permissions
+            necessary to host and display it for their events.
+          </p>
+        </section>
+        <section>
+          <h2>Liability</h2>
+          <p>
+            To the extent permitted by law, TomaMe is not responsible for
+            organizer decisions, event outcomes, prizes, contestant disputes,
+            telecommunications failures, or losses caused by circumstances
+            outside reasonable platform control.
+          </p>
+        </section>
+        <section>
+          <h2>Changes and contact</h2>
+          <p>
+            We may update these terms as the platform changes. Continued use
+            after updated terms are published constitutes acceptance, subject to
+            applicable law.
+          </p>
+        </section>
       </article>
     </Shell>
   );
@@ -1444,8 +1737,14 @@ function App() {
         <Route path="/events/:slug" element={<EventDetailPage />} />
         <Route path="/payment/verify" element={<PaymentVerifyPage />} />
         <Route path="/organizers" element={<OrganizerPage />} />
-        <Route path="/superadmin/login" element={<LoginPortalRoute portal="superadmin" />} />
-        <Route path="/administrators/login" element={<LoginPortalRoute portal="administrator" />} />
+        <Route
+          path="/superadmin/login"
+          element={<LoginPortalRoute portal="superadmin" />}
+        />
+        <Route
+          path="/administrators/login"
+          element={<LoginPortalRoute portal="administrator" />}
+        />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/dashboard" element={<DashboardRoute />} />
@@ -1456,7 +1755,10 @@ function App() {
         <Route path="/dashboard/payments" element={<PaymentsRoute />} />
         <Route path="/dashboard/settings" element={<SettingsRoute />} />
         <Route path="/dashboard/audit-logs" element={<AuditLogsRoute />} />
-        <Route path="/dashboard/administrators" element={<AdministratorsRoute />} />
+        <Route
+          path="/dashboard/administrators"
+          element={<AdministratorsRoute />}
+        />
         <Route path="/dashboard/financial" element={<FinancialRoute />} />
         <Route path="/dashboard/transactions" element={<PaymentsRoute />} />
         <Route path="*" element={<PlaceholderPage />} />
