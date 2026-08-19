@@ -1,30 +1,30 @@
-﻿import { useState } from "react";
-import { LoaderCircle } from "lucide-react";
-import { Link } from "react-router-dom";
-import logo from "../../assets/logo.png";
-import { api } from "./adminApi.js";
-export function LoginPage({ onLogin, portal = "administrator" }) {
-  const [mode, setMode] = useState("login");
-  const [email, setEmail] = useState("");
-  const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
-  const [otp, setOtp] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [challengeId, setChallengeId] = useState("");
-  const [state, setState] = useState({ loading: false, error: "" });
+import { useState } from 'react';
+import { LoaderCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import logo from '../../assets/logo.png';
+import { api } from './adminApi.js';
+export function LoginPage({ onLogin, portal = 'administrator' }) {
+  const [mode, setMode] = useState('login');
+  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [challengeId, setChallengeId] = useState('');
+  const [state, setState] = useState({ loading: false, error: '' });
   async function submit(event) {
     event.preventDefault();
-    setState({ loading: true, error: "" });
+    setState({ loading: true, error: '' });
     try {
-      const session = await api("/api/v1/auth/login", {
-        method: "POST",
+      const session = await api('/api/v1/auth/login', {
+        method: 'POST',
         body: JSON.stringify({ identifier, password, portal }),
       });
       if (session.mfaRequired) {
         setChallengeId(session.challengeId);
-        setOtp("");
-        setMode("mfa");
-        setState({ loading: false, error: "" });
+        setOtp('');
+        setMode('mfa');
+        setState({ loading: false, error: '' });
       } else await onLogin(session);
     } catch (error) {
       setState({ loading: false, error: error.message });
@@ -32,10 +32,10 @@ export function LoginPage({ onLogin, portal = "administrator" }) {
   }
   async function confirmMfa(event) {
     event.preventDefault();
-    setState({ loading: true, error: "" });
+    setState({ loading: true, error: '' });
     try {
-      const session = await api("/api/v1/auth/login/mfa", {
-        method: "POST",
+      const session = await api('/api/v1/auth/login/mfa', {
+        method: 'POST',
         body: JSON.stringify({ challengeId, otp, portal }),
       });
       await onLogin(session);
@@ -45,15 +45,15 @@ export function LoginPage({ onLogin, portal = "administrator" }) {
   }
   async function requestReset(event) {
     event.preventDefault();
-    setState({ loading: true, error: "" });
+    setState({ loading: true, error: '' });
     try {
-      const data = await api("/api/v1/auth/password-reset/request", {
-        method: "POST",
+      const data = await api('/api/v1/auth/password-reset/request', {
+        method: 'POST',
         body: JSON.stringify({ email }),
       });
       setChallengeId(data.challengeId);
-      setMode("confirm");
-      setState({ loading: false, error: "" });
+      setMode('confirm');
+      setState({ loading: false, error: '' });
     } catch (error) {
       setState({ loading: false, error: error.message });
     }
@@ -61,29 +61,29 @@ export function LoginPage({ onLogin, portal = "administrator" }) {
   async function confirmReset(event) {
     event.preventDefault();
     if (password !== confirmPassword) {
-      setState({ loading: false, error: "Passwords do not match." });
+      setState({ loading: false, error: 'Passwords do not match.' });
       return;
     }
-    setState({ loading: true, error: "" });
+    setState({ loading: true, error: '' });
     try {
-      await api("/api/v1/auth/password-reset/confirm", {
-        method: "POST",
+      await api('/api/v1/auth/password-reset/confirm', {
+        method: 'POST',
         body: JSON.stringify({ challengeId, otp, password }),
       });
-      setPassword("");
-      setConfirmPassword("");
-      setOtp("");
-      setMode("login");
-      setState({ loading: false, error: "" });
+      setPassword('');
+      setConfirmPassword('');
+      setOtp('');
+      setMode('login');
+      setState({ loading: false, error: '' });
     } catch (error) {
       setState({ loading: false, error: error.message });
     }
   }
-  if (mode === "mfa")
+  if (mode === 'mfa')
     return (
       <div className="organizer-login">
         <Link to="/">
-          <img src={logo} alt="TomaMe" />
+          <img src={logo} alt="Toabapa" />
         </Link>
         <form onSubmit={confirmMfa}>
           <span className="eyebrow">Two-factor authentication</span>
@@ -99,7 +99,7 @@ export function LoginPage({ onLogin, portal = "administrator" }) {
               maxLength="6"
               value={otp}
               onChange={(event) =>
-                setOtp(event.target.value.replace(/\D/g, ""))
+                setOtp(event.target.value.replace(/\D/g, ''))
               }
               required
             />
@@ -117,16 +117,16 @@ export function LoginPage({ onLogin, portal = "administrator" }) {
             {state.loading ? (
               <LoaderCircle className="spin" />
             ) : (
-              "Verify and sign in"
+              'Verify and sign in'
             )}
           </button>
           <button
             className="login-text-action"
             type="button"
             onClick={() => {
-              setMode("login");
-              setOtp("");
-              setState({ loading: false, error: "" });
+              setMode('login');
+              setOtp('');
+              setState({ loading: false, error: '' });
             }}
           >
             Back to sign in
@@ -134,25 +134,25 @@ export function LoginPage({ onLogin, portal = "administrator" }) {
         </form>
       </div>
     );
-  if (mode !== "login")
+  if (mode !== 'login')
     return (
       <div className="organizer-login">
         <Link to="/">
-          <img src={logo} alt="TomaMe" />
+          <img src={logo} alt="Toabapa" />
         </Link>
-        <form onSubmit={mode === "request" ? requestReset : confirmReset}>
+        <form onSubmit={mode === 'request' ? requestReset : confirmReset}>
           <span className="eyebrow">Account recovery</span>
           <h1>
-            {mode === "request"
-              ? "Reset your password."
-              : "Enter your reset code."}
+            {mode === 'request'
+              ? 'Reset your password.'
+              : 'Enter your reset code.'}
           </h1>
           <p>
-            {mode === "request"
-              ? "We will send a six-digit OTP to your registered recovery phone."
-              : "The SMS code expires after 10 minutes."}
+            {mode === 'request'
+              ? 'We will send a six-digit OTP to your registered recovery phone.'
+              : 'The SMS code expires after 10 minutes.'}
           </p>
-          {mode === "request" ? (
+          {mode === 'request' ? (
             <label>
               Email address
               <input
@@ -174,7 +174,7 @@ export function LoginPage({ onLogin, portal = "administrator" }) {
                   maxLength="6"
                   value={otp}
                   onChange={(event) =>
-                    setOtp(event.target.value.replace(/\D/g, ""))
+                    setOtp(event.target.value.replace(/\D/g, ''))
                   }
                   required
                 />
@@ -215,18 +215,18 @@ export function LoginPage({ onLogin, portal = "administrator" }) {
           >
             {state.loading ? (
               <LoaderCircle className="spin" />
-            ) : mode === "request" ? (
-              "Send reset code"
+            ) : mode === 'request' ? (
+              'Send reset code'
             ) : (
-              "Reset password"
+              'Reset password'
             )}
           </button>
           <button
             className="login-text-action"
             type="button"
             onClick={() => {
-              setMode("login");
-              setState({ loading: false, error: "" });
+              setMode('login');
+              setState({ loading: false, error: '' });
             }}
           >
             Back to sign in
@@ -237,28 +237,24 @@ export function LoginPage({ onLogin, portal = "administrator" }) {
   return (
     <div className="organizer-login">
       <Link to="/">
-        <img src={logo} alt="TomaMe" />
+        <img src={logo} alt="Toabapa" />
       </Link>
       <form onSubmit={submit}>
         <span className="eyebrow">
-          {portal === "superadmin"
-            ? "Superadmin console"
-            : "Event administrator workspace"}
+          {portal === 'superadmin'
+            ? 'Superadmin console'
+            : 'Event administrator workspace'}
         </span>
         <h1>
-          {portal === "superadmin"
-            ? "Sign in to manage TomaMe."
-            : "Sign in to manage your events."}
+          {portal === 'superadmin'
+            ? 'Sign in to manage Toabapa.'
+            : 'Sign in to manage your events.'}
         </h1>
-        <p>
-          {portal === "superadmin"
-            ? "Use your authorized platform superadmin account."
-            : "Use the account assigned to your event by a superadmin."}
-        </p>
+        <p>{portal === 'superadmin' ? '' : ''}</p>
         <label>
-          {portal === "superadmin" ? "Email address" : "Username"}
+          {portal === 'superadmin' ? 'Email address' : 'Username'}
           <input
-            type={portal === "superadmin" ? "email" : "text"}
+            type={portal === 'superadmin' ? 'email' : 'text'}
             autoComplete="username"
             value={identifier}
             onChange={(event) => setIdentifier(event.target.value)}
@@ -286,14 +282,14 @@ export function LoginPage({ onLogin, portal = "administrator" }) {
           disabled={state.loading}
           type="submit"
         >
-          {state.loading ? <LoaderCircle className="spin" /> : "Sign in"}
+          {state.loading ? <LoaderCircle className="spin" /> : 'Sign in'}
         </button>
         <button
           className="login-text-action"
           type="button"
           onClick={() => {
-            setMode("request");
-            setState({ loading: false, error: "" });
+            setMode('request');
+            setState({ loading: false, error: '' });
           }}
         >
           Forgot password?

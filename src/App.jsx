@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   AlertCircle,
@@ -20,7 +20,7 @@ import {
   WalletCards,
   X,
   Zap,
-} from "lucide-react";
+} from 'lucide-react';
 import {
   BrowserRouter,
   Link,
@@ -30,9 +30,9 @@ import {
   useNavigate,
   useParams,
   useSearchParams,
-} from "react-router-dom";
-import logo from "./assets/logo.png";
-import organizerHero from "./assets/organizer-hero.jpg";
+} from 'react-router-dom';
+import logo from './assets/logo.png';
+import organizerHero from './assets/organizer-hero.jpg';
 import {
   CandidatesRoute,
   AuditLogsRoute,
@@ -45,12 +45,12 @@ import {
   SettingsRoute,
   LoginPortalRoute,
   FinancialRoute,
-} from "./pages/OrganizerAdminPages.jsx";
+} from './pages/OrganizerAdminPages.jsx';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 function publicApiUrl(path) {
-  return API_URL ? `${API_URL.replace(/\/$/, "")}${path}` : path;
+  return API_URL ? `${API_URL.replace(/\/$/, '')}${path}` : path;
 }
 
 async function getJson(path, signal) {
@@ -58,26 +58,26 @@ async function getJson(path, signal) {
   const payload = await response.json().catch(() => null);
   if (!response.ok || !payload?.success)
     throw new Error(
-      payload?.error?.message || "Unable to load TomaMe right now.",
+      payload?.error?.message || 'Unable to load Toabapa right now.',
     );
   return payload.data;
 }
 
 function usePublicData(path) {
-  const [state, setState] = useState({ path: "", data: [], error: "" });
+  const [state, setState] = useState({ path: '', data: [], error: '' });
   useEffect(() => {
     const controller = new AbortController();
     getJson(path, controller.signal)
-      .then((data) => setState({ path, data, error: "" }))
+      .then((data) => setState({ path, data, error: '' }))
       .catch((error) => {
-        if (error.name !== "AbortError")
+        if (error.name !== 'AbortError')
           setState({ path, data: [], error: error.message });
       });
     return () => controller.abort();
   }, [path]);
   return state.path === path
     ? { ...state, loading: false }
-    : { data: [], error: "", loading: true };
+    : { data: [], error: '', loading: true };
 }
 
 function Shell({ children }) {
@@ -85,19 +85,19 @@ function Shell({ children }) {
   useEffect(() => {
     if (!menuOpen) return undefined;
     const closeOnEscape = (event) =>
-      event.key === "Escape" && setMenuOpen(false);
-    document.addEventListener("keydown", closeOnEscape);
-    document.body.style.overflow = "hidden";
+      event.key === 'Escape' && setMenuOpen(false);
+    document.addEventListener('keydown', closeOnEscape);
+    document.body.style.overflow = 'hidden';
     return () => {
-      document.removeEventListener("keydown", closeOnEscape);
-      document.body.style.overflow = "";
+      document.removeEventListener('keydown', closeOnEscape);
+      document.body.style.overflow = '';
     };
   }, [menuOpen]);
   return (
     <div className="app-shell">
       <header className="site-header">
-        <Link className="brand" to="/" aria-label="TomaMe home">
-          <img src={logo} alt="TomaMe" />
+        <Link className="brand" to="/" aria-label="Toabapa home">
+          <img src={logo} alt="Toabapa" />
         </Link>
         <nav className="desktop-nav" aria-label="Primary navigation">
           <NavLink to="/">Home</NavLink>
@@ -133,7 +133,7 @@ function Shell({ children }) {
             aria-label="Site menu"
           >
             <header>
-              <img src={logo} alt="TomaMe" />
+              <img src={logo} alt="Toabapa" />
               <button
                 className="icon-button"
                 type="button"
@@ -173,8 +173,8 @@ function Shell({ children }) {
       )}
       <main>{children}</main>
       <footer className="site-footer">
-        <img src={logo} alt="TomaMe" />
-        <p>&copy; {new Date().getFullYear()} TomaMe. All rights reserved.</p>
+        <img src={logo} alt="Toabapa" />
+        <p>&copy; {new Date().getFullYear()} Toabapa. All rights reserved.</p>
         <nav aria-label="Footer navigation">
           <Link to="/events">Explore events</Link>
           <Link to="/organizers">For organizers</Link>
@@ -201,7 +201,7 @@ function Shell({ children }) {
   );
 }
 
-function SearchForm({ initialValue = "", compact = false, focus = false }) {
+function SearchForm({ initialValue = '', compact = false, focus = false }) {
   const [value, setValue] = useState(initialValue);
   const navigate = useNavigate();
   const inputRef = useRef(null);
@@ -211,12 +211,12 @@ function SearchForm({ initialValue = "", compact = false, focus = false }) {
   function submit(event) {
     event.preventDefault();
     navigate(
-      `/events${value.trim() ? `?search=${encodeURIComponent(value.trim())}` : ""}`,
+      `/events${value.trim() ? `?search=${encodeURIComponent(value.trim())}` : ''}`,
     );
   }
   return (
     <form
-      className={`search-form ${compact ? "compact" : ""}`}
+      className={`search-form ${compact ? 'compact' : ''}`}
       onSubmit={submit}
       role="search"
     >
@@ -226,7 +226,7 @@ function SearchForm({ initialValue = "", compact = false, focus = false }) {
         value={value}
         onChange={(event) => setValue(event.target.value)}
         placeholder="Search candidate, event or code"
-        aria-label="Search TomaMe"
+        aria-label="Search Toabapa"
       />
       <button
         className="icon-button search-submit"
@@ -244,22 +244,22 @@ function StatusBadge({ status }) {
   return (
     <span className={`status-badge ${status}`}>
       <span />
-      {status === "live" ? "Live" : status}
+      {status === 'live' ? 'Live' : status}
     </span>
   );
 }
 
 function formatDate(date) {
-  return new Intl.DateTimeFormat("en-GH", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
+  return new Intl.DateTimeFormat('en-GH', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
   }).format(new Date(date));
 }
 
 function EventCard({ event, featured = false }) {
   return (
-    <article className={`event-card ${featured ? "featured" : ""}`}>
+    <article className={`event-card ${featured ? 'featured' : ''}`}>
       <div
         className="event-image"
         style={
@@ -283,13 +283,13 @@ function EventCard({ event, featured = false }) {
           </span>
           <span>
             <CalendarDays />
-            {event.publicStatus === "live"
+            {event.publicStatus === 'live'
               ? `Ends ${formatDate(event.endAt)}`
               : formatDate(event.startAt)}
           </span>
         </div>
         <Link className="event-link" to={`/events/${event.slug}`}>
-          {event.publicStatus === "ended" ? "View results" : "Explore event"}
+          {event.publicStatus === 'ended' ? 'View results' : 'Explore event'}
           <ChevronRight />
         </Link>
       </div>
@@ -334,9 +334,9 @@ function ErrorState({ message }) {
 
 function ScrollReveal({
   children,
-  className = "",
+  className = '',
   delay = 0,
-  as: Element = "div",
+  as: Element = 'div',
   ...props
 }) {
   const ref = useRef(null);
@@ -344,20 +344,20 @@ function ScrollReveal({
     const node = ref.current;
     if (!node) return undefined;
     if (
-      !("IntersectionObserver" in window) ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      !('IntersectionObserver' in window) ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
     ) {
-      node.classList.add("is-revealed");
+      node.classList.add('is-revealed');
       return undefined;
     }
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          node.classList.add("is-revealed");
+          node.classList.add('is-revealed');
           observer.unobserve(node);
         }
       },
-      { threshold: 0.12, rootMargin: "0px 0px -48px" },
+      { threshold: 0.12, rootMargin: '0px 0px -48px' },
     );
     observer.observe(node);
     return () => observer.disconnect();
@@ -367,7 +367,7 @@ function ScrollReveal({
       {...props}
       ref={ref}
       className={`scroll-reveal ${className}`.trim()}
-      style={{ "--reveal-delay": `${delay}ms`, ...props.style }}
+      style={{ '--reveal-delay': `${delay}ms`, ...props.style }}
     >
       {children}
     </Element>
@@ -375,7 +375,7 @@ function ScrollReveal({
 }
 
 function HomePage() {
-  const events = usePublicData("/api/v1/public/events?status=live");
+  const events = usePublicData('/api/v1/public/events?status=live');
   return (
     <Shell>
       <section className="hero-section">
@@ -393,8 +393,8 @@ function HomePage() {
         <ScrollReveal className="hero-art reveal-scale" delay={100}>
           <div className="ballot">
             <Vote />
-            <strong>Your voice counts</strong>
-            <span>Secure voting powered by TomaMe</span>
+            <strong>Your vote counts</strong>
+            <span>Secure voting powered by ToabaPa</span>
           </div>
           <div className="vote-mark">✓</div>
         </ScrollReveal>
@@ -446,7 +446,7 @@ function HomePage() {
           </ScrollReveal>
           <ScrollReveal as="li" delay={160}>
             <b>03</b>
-            <strong>Pay securely</strong>
+            <strong>Pay</strong>
             <span>Confirm payment and receive your reference.</span>
           </ScrollReveal>
         </ol>
@@ -462,7 +462,7 @@ function HomePage() {
             <summary>Do I need an account to vote?</summary>
             <p>
               No. You can vote using your mobile number without creating a
-              TomaMe account.
+              Toabapa account.
             </p>
           </details>
           <details>
@@ -489,7 +489,7 @@ function HomePage() {
             </p>
           </details>
           <details>
-            <summary>Does TomaMe collect my Mobile Money PIN?</summary>
+            <summary>Does Toabapa collect my Mobile Money PIN?</summary>
             <p>
               No. PIN entry and payment authorization happen securely through
               your mobile network or payment provider.
@@ -499,7 +499,7 @@ function HomePage() {
             <summary>Who controls event information and results?</summary>
             <p>
               The event organizer manages contestants, schedules, pricing, and
-              result visibility. TomaMe provides the voting and transaction
+              result visibility. Toabapa provides the voting and transaction
               platform.
             </p>
           </details>
@@ -511,9 +511,9 @@ function HomePage() {
 
 function ExplorePage() {
   const [params, setParams] = useSearchParams();
-  const status = params.get("status") || "all";
-  const search = params.get("search") || "";
-  const focusSearch = params.get("focus") === "search";
+  const status = params.get('status') || 'all';
+  const search = params.get('search') || '';
+  const focusSearch = params.get('focus') === 'search';
   const path = useMemo(
     () =>
       `/api/v1/public/events?status=${encodeURIComponent(status)}&search=${encodeURIComponent(search)}`,
@@ -522,8 +522,8 @@ function ExplorePage() {
   const events = usePublicData(path);
   function changeStatus(next) {
     const updated = new URLSearchParams(params);
-    if (next === "all") updated.delete("status");
-    else updated.set("status", next);
+    if (next === 'all') updated.delete('status');
+    else updated.set('status', next);
     setParams(updated);
   }
   return (
@@ -548,9 +548,9 @@ function ExplorePage() {
           role="group"
           aria-label="Filter events by status"
         >
-          {["all", "live", "upcoming", "ended"].map((item) => (
+          {['all', 'live', 'upcoming', 'ended'].map((item) => (
             <button
-              className={status === item ? "active" : ""}
+              className={status === item ? 'active' : ''}
               onClick={() => changeStatus(item)}
               key={item}
               type="button"
@@ -563,12 +563,12 @@ function ExplorePage() {
           <h2>
             {search
               ? `Results for “${search}”`
-              : status === "all"
-                ? "All events"
+              : status === 'all'
+                ? 'All events'
                 : `${status} events`}
           </h2>
           <span>
-            {events.loading ? "Loading" : `${events.data.length} found`}
+            {events.loading ? 'Loading' : `${events.data.length} found`}
           </span>
         </ScrollReveal>
         {events.loading ? (
@@ -600,7 +600,7 @@ function EventDetailPage() {
   const event = usePublicData(
     `/api/v1/public/events/${encodeURIComponent(slug)}`,
   );
-  const [category, setCategory] = useState("all");
+  const [category, setCategory] = useState('all');
   const [voteCandidate, setVoteCandidate] = useState(null);
   if (event.loading)
     return (
@@ -620,17 +620,17 @@ function EventDetailPage() {
     );
   const data = event.data;
   const visibleCategories =
-    category === "all"
+    category === 'all'
       ? data.categories
       : data.categories.filter((item) => item.id === category);
-  const price = (data.defaultVotePrice / 100).toLocaleString("en-GH", {
-    style: "currency",
+  const price = (data.defaultVotePrice / 100).toLocaleString('en-GH', {
+    style: 'currency',
     currency: data.currency,
   });
   return (
     <Shell>
       <section
-        className={`event-detail-hero ${data.bannerUrl ? "has-banner" : ""}`}
+        className={`event-detail-hero ${data.bannerUrl ? 'has-banner' : ''}`}
         style={
           data.bannerUrl
             ? { backgroundImage: `url(${data.bannerUrl})` }
@@ -644,15 +644,15 @@ function EventDetailPage() {
           <h1>{data.name}</h1>
           <p>
             {data.description ||
-              "Explore the categories and contestants in this event."}
+              'Explore the categories and contestants in this event.'}
           </p>
           <div className="event-detail-meta">
             <span>
               <CalendarDays />
-              {data.publicStatus === "live"
+              {data.publicStatus === 'live'
                 ? `Voting ends ${formatDate(data.endAt)}`
-                : data.publicStatus === "paused"
-                  ? "Voting is temporarily paused"
+                : data.publicStatus === 'paused'
+                  ? 'Voting is temporarily paused'
                   : `Voting starts ${formatDate(data.startAt)}`}
             </span>
             <span>
@@ -667,7 +667,7 @@ function EventDetailPage() {
         </div>
       </section>
       <section className="contestant-section">
-        {data.publicStatus === "paused" && (
+        {data.publicStatus === 'paused' && (
           <div className="voting-paused-notice">
             <AlertCircle />
             <div>
@@ -692,15 +692,15 @@ function EventDetailPage() {
           aria-label="Contestant categories"
         >
           <button
-            className={category === "all" ? "active" : ""}
-            onClick={() => setCategory("all")}
+            className={category === 'all' ? 'active' : ''}
+            onClick={() => setCategory('all')}
             type="button"
           >
             All contestants <span>{data.candidates.length}</span>
           </button>
           {data.categories.map((item) => (
             <button
-              className={category === item.id ? "active" : ""}
+              className={category === item.id ? 'active' : ''}
               onClick={() => setCategory(item.id)}
               type="button"
               key={item.id}
@@ -753,13 +753,13 @@ function CategoryContestants({
   onVote,
 }) {
   const resultLabel =
-    result?.visibility === "EXACT_TOTALS"
+    result?.visibility === 'EXACT_TOTALS'
       ? `${(result.totalVotes || 0).toLocaleString()} current votes`
-      : result?.visibility === "PERCENTAGES"
-        ? "Current percentages"
-        : result?.visibility === "RANKING_ONLY"
-          ? "Current ranking"
-          : "Results are private";
+      : result?.visibility === 'PERCENTAGES'
+        ? 'Current percentages'
+        : result?.visibility === 'RANKING_ONLY'
+          ? 'Current ranking'
+          : 'Results are private';
   return (
     <section className="category-contestant-group">
       <div className="category-statistics">
@@ -785,9 +785,9 @@ function CategoryContestants({
               <small>Current leader</small>
               <strong>{result.leader.name}</strong>
               <em>
-                {result.visibility === "EXACT_TOTALS"
+                {result.visibility === 'EXACT_TOTALS'
                   ? `${result.leader.votes.toLocaleString()} votes`
-                  : result.visibility === "PERCENTAGES"
+                  : result.visibility === 'PERCENTAGES'
                     ? `${result.leader.percentage}%`
                     : result.leader.candidateCode}
               </em>
@@ -799,9 +799,9 @@ function CategoryContestants({
         <div className="contestant-grid">
           {candidates.map((candidate) => {
             const initials = candidate.name
-              .split(" ")
+              .split(' ')
               .map((part) => part[0])
-              .join("")
+              .join('')
               .slice(0, 2);
             return (
               <article className="contestant-card" key={candidate.id}>
@@ -831,20 +831,20 @@ function CategoryContestants({
                   <p>
                     {candidate.slogan ||
                       candidate.biography ||
-                      "Support this contestant in the event."}
+                      'Support this contestant in the event.'}
                   </p>
                   <button
                     className="primary-action"
                     type="button"
                     onClick={() => onVote(candidate)}
-                    disabled={eventStatus !== "live"}
+                    disabled={eventStatus !== 'live'}
                   >
                     <Vote />
-                    {eventStatus === "live"
-                      ? "Vote now"
-                      : eventStatus === "paused"
-                        ? "Voting paused"
-                        : "Voting unavailable"}
+                    {eventStatus === 'live'
+                      ? 'Vote now'
+                      : eventStatus === 'paused'
+                        ? 'Voting paused'
+                        : 'Voting unavailable'}
                   </button>
                 </div>
               </article>
@@ -867,32 +867,32 @@ function VoteDialog({ candidate, event, onClose }) {
   const [quantity, setQuantity] = useState(
     Math.max(1, event.minimumVotes || 1),
   );
-  const [custom, setCustom] = useState("");
-  const [contact, setContact] = useState({ phone: "" });
+  const [custom, setCustom] = useState('');
+  const [contact, setContact] = useState({ phone: '' });
   const [order, setOrder] = useState(null);
   const [state, setState] = useState({
-    phase: "details",
+    phase: 'details',
     loading: false,
-    error: "",
+    error: '',
   });
 
   useEffect(() => {
     function closeOnEscape(keyEvent) {
-      if (keyEvent.key === "Escape" && !state.loading) onClose();
+      if (keyEvent.key === 'Escape' && !state.loading) onClose();
     }
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
   }, [onClose, state.loading]);
 
   function chooseQuantity(value) {
     setQuantity(value);
-    setCustom("");
-    setState((current) => ({ ...current, error: "" }));
+    setCustom('');
+    setState((current) => ({ ...current, error: '' }));
   }
   function setCustomQuantity(value) {
     setCustom(value);
     setQuantity(Number(value));
-    setState((current) => ({ ...current, error: "" }));
+    setState((current) => ({ ...current, error: '' }));
   }
 
   async function createOrder(formEvent) {
@@ -903,51 +903,51 @@ function VoteDialog({ candidate, event, onClose }) {
       quantity > event.maximumVotesPerTransaction
     ) {
       setState({
-        phase: "details",
+        phase: 'details',
         loading: false,
         error: `Choose between ${event.minimumVotes} and ${event.maximumVotesPerTransaction} votes.`,
       });
       return;
     }
-    setState({ phase: "details", loading: true, error: "" });
+    setState({ phase: 'details', loading: true, error: '' });
     try {
-      const response = await fetch("/api/v1/vote-orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch('/api/v1/vote-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           candidateId: candidate.id,
           quantity,
           phone: contact.phone,
-          channel: "WEB",
+          channel: 'WEB',
         }),
       });
       const payload = await response.json();
       if (!response.ok || !payload.success)
         throw new Error(
-          payload?.error?.message || "Unable to create vote order.",
+          payload?.error?.message || 'Unable to create vote order.',
         );
       setOrder(payload.data);
-      setState({ phase: "review", loading: false, error: "" });
+      setState({ phase: 'review', loading: false, error: '' });
     } catch (error) {
-      setState({ phase: "details", loading: false, error: error.message });
+      setState({ phase: 'details', loading: false, error: error.message });
     }
   }
 
   async function pay() {
-    setState({ phase: "review", loading: true, error: "" });
+    setState({ phase: 'review', loading: true, error: '' });
     try {
       const response = await fetch(
         `/api/v1/payments/${encodeURIComponent(order.paymentReference)}/initialize`,
-        { method: "POST" },
+        { method: 'POST' },
       );
       const payload = await response.json();
       if (!response.ok || !payload.success)
         throw new Error(
-          payload?.error?.message || "Unable to initialize payment.",
+          payload?.error?.message || 'Unable to initialize payment.',
         );
       window.location.assign(payload.data.authorizationUrl);
     } catch (error) {
-      setState({ phase: "review", loading: false, error: error.message });
+      setState({ phase: 'review', loading: false, error: error.message });
     }
   }
 
@@ -982,14 +982,14 @@ function VoteDialog({ candidate, event, onClose }) {
             <X />
           </button>
         </header>
-        {state.phase === "details" ? (
+        {state.phase === 'details' ? (
           <form onSubmit={createOrder}>
             <div className="vote-candidate-summary">
               <div>
                 {candidate.name
-                  .split(" ")
+                  .split(' ')
                   .map((part) => part[0])
-                  .join("")
+                  .join('')
                   .slice(0, 2)}
               </div>
               <span>
@@ -1002,7 +1002,7 @@ function VoteDialog({ candidate, event, onClose }) {
               <div>
                 {quickVotes.map((value) => (
                   <button
-                    className={quantity === value && !custom ? "active" : ""}
+                    className={quantity === value && !custom ? 'active' : ''}
                     onClick={() => chooseQuantity(value)}
                     type="button"
                     key={value}
@@ -1052,7 +1052,7 @@ function VoteDialog({ candidate, event, onClose }) {
               <div>
                 <small>Estimated total</small>
                 <strong>
-                  {event.currency}{" "}
+                  {event.currency}{' '}
                   {(((quantity || 0) * event.defaultVotePrice) / 100).toFixed(
                     2,
                   )}
@@ -1118,7 +1118,7 @@ function VoteDialog({ candidate, event, onClose }) {
                 className="secondary-action"
                 disabled={state.loading}
                 onClick={() =>
-                  setState({ phase: "details", loading: false, error: "" })
+                  setState({ phase: 'details', loading: false, error: '' })
                 }
                 type="button"
               >
@@ -1135,7 +1135,7 @@ function VoteDialog({ candidate, event, onClose }) {
                 ) : (
                   <CreditCard />
                 )}
-                Pay securely
+                Pay
               </button>
             </div>
           </div>
@@ -1147,14 +1147,14 @@ function VoteDialog({ candidate, event, onClose }) {
 
 function PaymentVerifyPage() {
   const [params] = useSearchParams();
-  const reference = params.get("reference") || params.get("trxref") || "";
-  const [state, setState] = useState({ loading: true, error: "", data: null });
+  const reference = params.get('reference') || params.get('trxref') || '';
+  const [state, setState] = useState({ loading: true, error: '', data: null });
   useEffect(() => {
     if (!reference) {
       Promise.resolve().then(() =>
         setState({
           loading: false,
-          error: "Payment reference is missing.",
+          error: 'Payment reference is missing.',
           data: null,
         }),
       );
@@ -1165,9 +1165,9 @@ function PaymentVerifyPage() {
       `/api/v1/payments/${encodeURIComponent(reference)}/verify`,
       controller.signal,
     )
-      .then((data) => setState({ loading: false, error: "", data }))
+      .then((data) => setState({ loading: false, error: '', data }))
       .catch((error) => {
-        if (error.name !== "AbortError")
+        if (error.name !== 'AbortError')
           setState({ loading: false, error: error.message, data: null });
       });
     return () => controller.abort();
@@ -1202,7 +1202,7 @@ function PaymentVerifyPage() {
             <span className="eyebrow">Vote credited</span>
             <h1>Thank you for supporting {state.data.candidate.name}.</h1>
             <p>
-              {state.data.quantity} votes were credited successfully. Reference:{" "}
+              {state.data.quantity} votes were credited successfully. Reference:{' '}
               <strong>{state.data.reference}</strong>
             </p>
             <Link className="primary-action" to="/events">
@@ -1218,23 +1218,23 @@ function PaymentVerifyPage() {
 const organizerCapabilities = [
   {
     icon: Vote,
-    title: "One voting engine",
-    text: "Web and USSD orders follow the same pricing, payment verification, and vote-crediting rules.",
+    title: 'One voting engine',
+    text: 'Web and USSD orders follow the same pricing, payment verification, and vote-crediting rules.',
   },
   {
     icon: WalletCards,
-    title: "Verified payments",
-    text: "Votes are credited only after the provider confirms the expected amount and currency.",
+    title: 'Verified payments',
+    text: 'Votes are credited only after the provider confirms the expected amount and currency.',
   },
   {
     icon: BarChart3,
-    title: "Useful reporting",
-    text: "Follow vote volume, revenue, candidate performance, payment success, and channel mix.",
+    title: 'Useful reporting',
+    text: 'Follow vote volume, revenue, candidate performance, payment success, and channel mix.',
   },
   {
     icon: ShieldCheck,
-    title: "Tenant isolation",
-    text: "Organization records and administrative actions are scoped and authorized on the server.",
+    title: 'Tenant isolation',
+    text: 'Organization records and administrative actions are scoped and authorized on the server.',
   },
 ];
 
@@ -1285,9 +1285,9 @@ function OrganizerPage() {
           <h2>A practical workspace for serious public voting.</h2>
         </div>
         <p>
-          TomaMe keeps event operations, payments, voting channels, results, and
-          reporting connected. Your team gets the information needed to run the
-          event while voters get a short, clear path to support a candidate.
+          Toabapa keeps event operations, payments, voting channels, results,
+          and reporting connected. Your team gets the information needed to run
+          the event while voters get a short, clear path to support a candidate.
         </p>
       </section>
 
@@ -1596,7 +1596,7 @@ function PrivacyPage() {
           <h2>Sharing and disclosure</h2>
           <p>
             We share data with payment, mobile-network, messaging, hosting, and
-            infrastructure providers only as needed to operate TomaMe. We may
+            infrastructure providers only as needed to operate Toabapa. We may
             disclose information where required by law or to address fraud,
             security, or legal claims.
           </p>
@@ -1615,7 +1615,7 @@ function PrivacyPage() {
           <h2>Your choices</h2>
           <p>
             You may contact the relevant event organizer about event-submitted
-            information or contact TomaMe regarding platform data. Some
+            information or contact Toabapa regarding platform data. Some
             transaction records cannot be deleted immediately where they are
             required for financial reconciliation, fraud prevention, or legal
             compliance.
@@ -1643,9 +1643,9 @@ function TermsPage() {
           <p>Last updated: 11 August 2026</p>
         </header>
         <section>
-          <h2>Using TomaMe</h2>
+          <h2>Using Toabapa</h2>
           <p>
-            By accessing TomaMe or submitting a vote, you agree to these terms.
+            By accessing Toabapa or submitting a vote, you agree to these terms.
             You must provide accurate transaction information, use a payment
             method you are authorized to use, and comply with applicable law.
           </p>
@@ -1685,7 +1685,7 @@ function TermsPage() {
             You may not interfere with the service, automate unauthorized
             voting, exploit payment or USSD flows, impersonate others, upload
             unlawful content, attempt to access another organization, or use
-            TomaMe for fraudulent activity.
+            Toabapa for fraudulent activity.
           </p>
         </section>
         <section>
@@ -1700,7 +1700,7 @@ function TermsPage() {
         <section>
           <h2>Intellectual property</h2>
           <p>
-            TomaMe software, branding, and platform materials remain the
+            Toabapa software, branding, and platform materials remain the
             property of their respective owners. Organizers retain
             responsibility for content they submit and grant the permissions
             necessary to host and display it for their events.
@@ -1709,7 +1709,7 @@ function TermsPage() {
         <section>
           <h2>Liability</h2>
           <p>
-            To the extent permitted by law, TomaMe is not responsible for
+            To the extent permitted by law, Toabapa is not responsible for
             organizer decisions, event outcomes, prizes, contestant disputes,
             telecommunications failures, or losses caused by circumstances
             outside reasonable platform control.

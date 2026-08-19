@@ -639,7 +639,7 @@ financialRouter.post("/withdrawals/:id/process", async (req, res, next) => {
       amount: withdrawal.netAmount,
       recipientCode: withdrawal.payoutRecipient.recipientCode,
       reference: withdrawal.reference,
-      reason: "TomaMe wallet withdrawal",
+      reason: "Toabapa wallet withdrawal",
       currency: withdrawal.currency,
     });
     await prisma.withdrawal.update({

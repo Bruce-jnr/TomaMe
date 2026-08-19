@@ -73,7 +73,7 @@ async function main() {
     },
     create: {
       email: adminEmail,
-      name: "TomaMe Organizer",
+      name: "Toabapa Organizer",
       passwordHash: await argon2.hash(adminPassword, { type: argon2.argon2id }),
     },
   });

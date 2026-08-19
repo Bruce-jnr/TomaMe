@@ -1,6 +1,6 @@
-# TomaMe
+# Toabapa
 
-TomaMe is a multi-tenant paid public voting platform for awards, pageants, campus competitions, talent programs, and other public events.
+Toabapa is a multi-tenant paid public voting platform for awards, pageants, campus competitions, talent programs, and other public events.
 
 The application uses a React frontend and a Node.js/Express API written in TypeScript. PostgreSQL stores tenant, event, candidate, payment, and vote-ledger records through Prisma.
 
@@ -151,7 +151,7 @@ Unless overridden with seed environment variables, `npm run db:seed` creates:
 
 ```text
 Email: use `SEED_ADMIN_EMAIL` or the current email stored for the organizer user
-Password: TomaMeDev2026!
+Password: ToabapaDev2026!
 ```
 
 These credentials are only for local development. Set unique `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` values and never use the defaults in production.
@@ -207,7 +207,7 @@ POST https://your-api.example.com/api/v1/ussd/arkesel?token=YOUR_CALLBACK_SECRET
 Content-Type: application/json
 ```
 
-The route implements: main menu, nominee-code lookup, vote quantity, price preview, acceptance, Paystack Ghana mobile-money authorization, and asynchronous webhook crediting. TomaMe never collects the customer's Mobile Money PIN; the carrier/Paystack authorization prompt handles it.
+The route implements: main menu, nominee-code lookup, vote quantity, price preview, acceptance, Paystack Ghana mobile-money authorization, and asynchronous webhook crediting. Toabapa never collects the customer's Mobile Money PIN; the carrier/Paystack authorization prompt handles it.
 
 The token must equal `ARKESEL_USSD_SECRET`. An edge proxy that injects the `x-arkesel-secret` header is preferable when available. Arkesel request fields are `sessionID`, `userID`, `newSession`, `msisdn`, `userData`, and `network`. PostgreSQL stores sessions with a two-minute expiry.
 

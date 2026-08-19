@@ -1,6 +1,6 @@
-# TomaMe Financial Management Module — Superadmin Wallet, Ledger & Withdrawals
+# Toabapa Financial Management Module — Superadmin Wallet, Ledger & Withdrawals
 
-I have an existing TomaMe voting application.
+I have an existing Toabapa voting application.
 
 The application already has:
 
@@ -14,11 +14,11 @@ The application already has:
 - Prisma ORM
 - Node.js/Express backend
 
-I want to add a complete financial management system directly inside the existing TomaMe application.
+I want to add a complete financial management system directly inside the existing Toabapa application.
 
 DO NOT create a separate application or separate domain.
 
-The new functionality must be available through the existing Superadmin dashboard and must use the existing TomaMe backend, authentication system, PostgreSQL database, Prisma ORM, and Paystack integration.
+The new functionality must be available through the existing Superadmin dashboard and must use the existing Toabapa backend, authentication system, PostgreSQL database, Prisma ORM, and Paystack integration.
 
 The goal is to track how much money each eligible user/contestant is entitled to, maintain a complete financial ledger, and allow authorized Superadmins to process withdrawals/transfers through Paystack.
 
@@ -55,7 +55,7 @@ Do not break any existing voting, authentication, election, or Paystack function
 
 # 2. FINANCIAL ARCHITECTURE
 
-Create the following logical modules inside the existing TomaMe backend:
+Create the following logical modules inside the existing Toabapa backend:
 
 ```text
 src/
@@ -142,7 +142,7 @@ If a correction is required, create a new `ADJUSTMENT` or reversal entry with a 
 
 # 5. IMPORTANT: CONNECT THE LEDGER TO EXISTING PAYMENTS
 
-Find the exact location in the existing TomaMe application where a successful Paystack payment is confirmed.
+Find the exact location in the existing Toabapa application where a successful Paystack payment is confirmed.
 
 When a payment associated with a vote is successfully verified, create the appropriate financial ledger entry.
 
@@ -153,7 +153,7 @@ Customer pays
       ↓
 Paystack
       ↓
-TomaMe payment verification
+Toabapa payment verification
       ↓
 Payment marked successful
       ↓
@@ -170,7 +170,7 @@ Only create the financial entry after the backend has independently verified the
 
 Make this operation idempotent.
 
-If Paystack sends the same successful event twice, TomaMe must not create two earnings.
+If Paystack sends the same successful event twice, Toabapa must not create two earnings.
 
 Use unique payment/transaction references to prevent duplicate financial entries.
 
@@ -178,7 +178,7 @@ Use unique payment/transaction references to prevent duplicate financial entries
 
 # 6. DEFINE HOW CONTESTANT ENTITLEMENT IS CALCULATED
 
-Inspect the existing TomaMe business logic and determine how revenue from votes should be allocated.
+Inspect the existing Toabapa business logic and determine how revenue from votes should be allocated.
 
 Do NOT invent a percentage without asking.
 
@@ -212,7 +212,7 @@ The resulting available entitlement is:
 GH₵90
 ```
 
-Use the actual TomaMe business rules once identified.
+Use the actual Toabapa business rules once identified.
 
 ---
 
@@ -335,7 +335,7 @@ Paystack processes transfer
         ↓
 Paystack webhook
         ↓
-TomaMe updates withdrawal
+Toabapa updates withdrawal
         ↓
 Ledger is finalized
 ```
@@ -512,7 +512,7 @@ Never rely solely on frontend route protection.
 
 # 16. PAYSTACK RECIPIENTS
 
-Support recipient information required for the applicable TomaMe payout methods.
+Support recipient information required for the applicable Toabapa payout methods.
 
 For Ghana, support the appropriate Paystack transfer recipient types, including bank and mobile-money recipients where applicable.
 
@@ -684,7 +684,7 @@ The original financial records must remain untouched.
 
 # 22. SUPERADMIN API ROUTES
 
-Create protected backend routes following the existing TomaMe route conventions.
+Create protected backend routes following the existing Toabapa route conventions.
 
 Suggested routes:
 
@@ -770,12 +770,12 @@ Do not create duplicate Paystack configurations.
 
 # 25. NGROK DEVELOPMENT SUPPORT
 
-The application must work when the TomaMe backend is exposed through ngrok.
+The application must work when the Toabapa backend is exposed through ngrok.
 
 For example:
 
 ```text
-Local TomaMe API:
+Local Toabapa API:
 
 http://localhost:5000
 
@@ -796,7 +796,7 @@ Do NOT expose PostgreSQL through ngrok.
 
 Only expose the HTTP/HTTPS backend.
 
-Ensure that webhook requests can reach the locally running TomaMe server.
+Ensure that webhook requests can reach the locally running Toabapa server.
 
 ---
 
@@ -807,13 +807,13 @@ Create a financial reconciliation mechanism.
 The Superadmin should be able to compare:
 
 ```text
-TomaMe successful payments
+Toabapa successful payments
         ↓
-TomaMe ledger
+Toabapa ledger
         ↓
 Contestant entitlements
         ↓
-TomaMe withdrawals
+Toabapa withdrawals
         ↓
 Paystack transfers
 ```
@@ -823,7 +823,7 @@ The system should make it possible to identify discrepancies.
 For example:
 
 ```text
-TomaMe recorded revenue: GH₵50,000
+Toabapa recorded revenue: GH₵50,000
 Ledger entitlement:       GH₵40,000
 Platform fees:             GH₵10,000
 Withdrawals:               GH₵20,000
@@ -880,7 +880,7 @@ Test duplicate Paystack webhook events and ensure the balance is not changed twi
 
 Integrate the new financial pages into the existing Superadmin dashboard.
 
-Follow the existing TomaMe:
+Follow the existing Toabapa:
 
 - colors
 - typography
@@ -914,14 +914,14 @@ Paystack Account Balance
 and
 
 ```text
-TomaMe User Entitlement
+Toabapa User Entitlement
 ```
 
 They are NOT the same thing.
 
-Paystack's balance represents money held in the TomaMe Paystack account.
+Paystack's balance represents money held in the Toabapa Paystack account.
 
-The TomaMe ledger represents how much each user/contestant is entitled to according to TomaMe's business rules.
+The Toabapa ledger represents how much each user/contestant is entitled to according to Toabapa's business rules.
 
 The Superadmin dashboard should display both where appropriate.
 
@@ -964,4 +964,4 @@ After implementation, provide a concise report containing:
 
 The most important requirement is:
 
-**Do not break the existing TomaMe voting and payment functionality. Build the financial system as a secure, modular extension of the existing application.**
+**Do not break the existing Toabapa voting and payment functionality. Build the financial system as a secure, modular extension of the existing application.**

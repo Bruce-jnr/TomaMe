@@ -22,7 +22,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
 
-const STORAGE_KEY = 'tomame:create-event-draft';
+const STORAGE_KEY = 'toabapa:create-event-draft';
 const steps = [
   { name: 'Event details', icon: FileImage },
   { name: 'Schedule', icon: CalendarDays },
@@ -270,7 +270,7 @@ export default function CreateEventPage() {
     <div className="admin-shell">
       <aside className="admin-sidebar">
         <Link className="admin-brand" to="/">
-          <img src={logo} alt="TomaMe" />
+          <img src={logo} alt="Toabapa" />
         </Link>
         <nav aria-label="Organizer navigation">
           <Link to="/dashboard">
@@ -297,7 +297,7 @@ export default function CreateEventPage() {
         <div className="admin-profile">
           <span>TM</span>
           <div>
-            <strong>TomaMe Organizer</strong>
+            <strong>Toabapa Organizer</strong>
             <small>Event workspace</small>
           </div>
         </div>
@@ -591,7 +591,7 @@ export default function CreateEventPage() {
                 <label>
                   <span>
                     <strong>Web voting</strong>
-                    <small>Accept votes from the TomaMe website.</small>
+                    <small>Accept votes from the Toabapa website.</small>
                   </span>
                   <input
                     type="checkbox"

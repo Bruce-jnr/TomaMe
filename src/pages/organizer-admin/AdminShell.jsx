@@ -1,4 +1,4 @@
-﻿import { useNavigate, Link, NavLink } from "react-router-dom";
+import { useNavigate, Link, NavLink } from "react-router-dom";
 import {
   CalendarDays,
   ClipboardList,
@@ -28,10 +28,10 @@ export function AdminLayout({ session, title, description, action, children }) {
     <div className="admin-shell management-shell">
       <aside className="admin-sidebar">
         <Link className="admin-brand" to="/">
-          <img src={logo} alt="TomaMe" />
+          <img src={logo} alt="Toabapa" />
         </Link>
         <nav aria-label="Organizer navigation">
-          <NavLink to="/dashboard">
+          <NavLink to="/dashboard" end>
             <LayoutDashboard />
             Overview
           </NavLink>
@@ -86,7 +86,6 @@ export function AdminLayout({ session, title, description, action, children }) {
           </span>
           <div>
             <strong>{session.user.name}</strong>
-            <small>{session.organization.name}</small>
           </div>
           <button
             onClick={logout}

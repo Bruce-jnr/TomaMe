@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { env } from '../config/env.js';
 import { prisma } from '../db/prisma.js';
 
-export const SESSION_COOKIE = 'tomame_session';
+export const SESSION_COOKIE = 'toabapa_session';
 const secret = new TextEncoder().encode(env.SESSION_SECRET);
 
 export type SessionPayload = {
@@ -23,8 +23,8 @@ export async function createSession(payload: Omit<SessionPayload, 'sessionId'>) 
     .setExpirationTime('8h')
     .setSubject(payload.userId)
     .setJti(sessionId)
-    .setIssuer('tomame-api')
-    .setAudience('tomame-organizer')
+    .setIssuer('toabapa-api')
+    .setAudience('toabapa-organizer')
     .sign(secret);
   await prisma.authSession.create({ data: { id: sessionId, userId: payload.userId, expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000) } });
   return token;
@@ -33,8 +33,8 @@ export async function createSession(payload: Omit<SessionPayload, 'sessionId'>) 
 export async function verifySession(token: string): Promise<SessionPayload> {
   const { payload } = await jwtVerify(token, secret, {
     algorithms: ['HS256'],
-    issuer: 'tomame-api',
-    audience: 'tomame-organizer',
+    issuer: 'toabapa-api',
+    audience: 'toabapa-organizer',
   });
   const sessionId = String(payload.sessionId || payload.jti || '');
   const stored = sessionId ? await prisma.authSession.findUnique({ where: { id: sessionId }, select: { userId: true, expiresAt: true, revokedAt: true } }) : null;

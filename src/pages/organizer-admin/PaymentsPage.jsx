@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from 'react';
 import {
   CheckCircle2,
   ChevronDown,
@@ -8,15 +8,20 @@ import {
   Eye,
   ReceiptText,
   Search,
-} from "lucide-react";
-import { AdminLayout, Dialog, AdminLoading, AdminEmpty } from "./AdminShell.jsx";
-import { api } from "./adminApi.js";
-import { useOrganizerContext } from "./useOrganizerContext.js";
+} from 'lucide-react';
+import {
+  AdminLayout,
+  Dialog,
+  AdminLoading,
+  AdminEmpty,
+} from './AdminShell.jsx';
+import { api } from './adminApi.js';
+import { useOrganizerContext } from './useOrganizerContext.js';
 export function PaymentsPage({ session }) {
   const context = useOrganizerContext();
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
-  const [eventId, setEventId] = useState("");
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [eventId, setEventId] = useState('');
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(null);
   const [data, setData] = useState({
@@ -32,10 +37,10 @@ export function PaymentsPage({ session }) {
     pagination: { page: 1, total: 0, pageCount: 0 },
   });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const load = useCallback(() => {
     api(
-      `/api/v1/organizer/payments?search=${encodeURIComponent(search)}&page=${page}${status ? `&status=${status}` : ""}${eventId ? `&eventId=${eventId}` : ""}`,
+      `/api/v1/organizer/payments?search=${encodeURIComponent(search)}&page=${page}${status ? `&status=${status}` : ''}${eventId ? `&eventId=${eventId}` : ''}`,
     )
       .then(setData)
       .catch((err) => setError(err.message))
@@ -48,18 +53,18 @@ export function PaymentsPage({ session }) {
         (item) =>
           `${item.currency} ${(item.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
       )
-      .join(" / ") || "GHS 0.00";
+      .join(' / ') || 'GHS 0.00';
   function exportPage() {
     const headings = [
-      "Reference",
-      "Event",
-      "Candidate",
-      "Votes",
-      "Channel",
-      "Amount",
-      "Currency",
-      "Status",
-      "Date",
+      'Reference',
+      'Event',
+      'Candidate',
+      'Votes',
+      'Channel',
+      'Amount',
+      'Currency',
+      'Status',
+      'Date',
     ];
     const rows = data.items.map((item) => [
       item.reference,
@@ -74,13 +79,13 @@ export function PaymentsPage({ session }) {
     ]);
     const quote = (value) => `"${String(value).replaceAll('"', '""')}"`;
     const blob = new Blob(
-      [[headings, ...rows].map((row) => row.map(quote).join(",")).join("\n")],
-      { type: "text/csv" },
+      [[headings, ...rows].map((row) => row.map(quote).join(',')).join('\n')],
+      { type: 'text/csv' },
     );
     const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
+    const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `tomame-payments-${page}.csv`;
+    anchor.download = `toabapa-payments-${page}.csv`;
     anchor.click();
     URL.revokeObjectURL(url);
   }
@@ -91,7 +96,7 @@ export function PaymentsPage({ session }) {
       description="Review provider-confirmed transactions and their credited votes."
     >
       <div
-        className={`payment-summary ${loading ? "payment-summary-skeleton" : ""}`}
+        className={`payment-summary ${loading ? 'payment-summary-skeleton' : ''}`}
         aria-busy={loading}
       >
         {loading ? (
@@ -111,7 +116,7 @@ export function PaymentsPage({ session }) {
               <small>Confirmed revenue</small>
               <strong>
                 GH₵
-                {revenue.replace(/^GHS /, "")}
+                {revenue.replace(/^GHS /, '')}
               </strong>
             </div>
             <div>
@@ -135,9 +140,6 @@ export function PaymentsPage({ session }) {
             <div>
               <span className="eyebrow">By event</span>
               <h2>Event performance</h2>
-              <p>
-                Confirmed revenue and credited votes for each assigned event.
-              </p>
             </div>
           </div>
           <div className="event-payment-grid">
@@ -156,7 +158,7 @@ export function PaymentsPage({ session }) {
                           (revenue) =>
                             `${revenue.currency} ${(revenue.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
                         )
-                        .join(" / ") || "GHS 0.00"}
+                        .join(' / ') || 'GHS 0.00'}
                     </dd>
                   </div>
                   <div>
@@ -208,13 +210,13 @@ export function PaymentsPage({ session }) {
           >
             <option value="">All statuses</option>
             {[
-              "PENDING",
-              "PROCESSING",
-              "PAID",
-              "FAILED",
-              "CANCELLED",
-              "EXPIRED",
-              "REFUNDED",
+              'PENDING',
+              'PROCESSING',
+              'PAID',
+              'FAILED',
+              'CANCELLED',
+              'EXPIRED',
+              'REFUNDED',
             ].map((item) => (
               <option value={item} key={item}>
                 {item}
@@ -264,9 +266,9 @@ export function PaymentsPage({ session }) {
                     <b className="table-reference">{item.reference}</b>
                     <small>
                       {new Date(item.createdAt).toLocaleDateString(undefined, {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
                       })}
                     </small>
                   </td>
@@ -297,7 +299,7 @@ export function PaymentsPage({ session }) {
                       </span>
                     </div>
                   </td>
-                  <td>{item.paymentMethod?.replaceAll("_", " ") || "—"}</td>
+                  <td>{item.paymentMethod?.replaceAll('_', ' ') || '—'}</td>
                   <td>
                     <span
                       className={`payment-status ${item.status.toLowerCase()}`}
@@ -372,7 +374,7 @@ export function PaymentsPage({ session }) {
               </div>
               <div>
                 <dt>Provider reference</dt>
-                <dd>{selected.providerTransactionId || "-"}</dd>
+                <dd>{selected.providerTransactionId || '-'}</dd>
               </div>
               <div>
                 <dt>Event</dt>
@@ -403,7 +405,7 @@ export function PaymentsPage({ session }) {
                 <dd>
                   {selected.providerPaidAt
                     ? new Date(selected.providerPaidAt).toLocaleString()
-                    : "-"}
+                    : '-'}
                 </dd>
               </div>
             </dl>

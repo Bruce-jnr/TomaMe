@@ -76,14 +76,14 @@ async function sendOtp(phone: string, message: string) {
 export function sendPasswordResetOtp(phone: string) {
   return sendOtp(
     phone,
-    'Your TomaMe password reset code is %otp_code%. It expires in 10 minutes.',
+    'Your Toabapa password reset code is %otp_code%. It expires in 10 minutes.',
   );
 }
 
 export function sendLoginOtp(phone: string) {
   return sendOtp(
     phone,
-    'Your TomaMe organizer sign-in code is %otp_code%. It expires in 10 minutes.',
+    'Your Toabapa organizer sign-in code is %otp_code%. It expires in 10 minutes.',
   );
 }
 

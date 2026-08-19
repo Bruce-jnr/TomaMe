@@ -43,7 +43,7 @@ export async function handleUssd(
       network: request.network,
     });
     return {
-      message: 'Welcome to TomaMe\n1. Vote\n0. Exit',
+      message: 'Welcome to Toabapa\n1. Vote\n0. Exit',
       continueSession: true,
     };
   }
@@ -60,7 +60,7 @@ export async function handleUssd(
       await deleteUssdSession(request.sessionID);
       return {
         message:
-          input === '0' ? 'Thank you for using TomaMe.' : 'Invalid option.',
+          input === '0' ? 'Thank you for using Toabapa.' : 'Invalid option.',
         continueSession: false,
       };
     }

@@ -180,7 +180,7 @@ export class PaystackProvider implements PaymentProvider {
         callback_url: input.callbackUrl,
         metadata: JSON.stringify({
           phone: input.phone,
-          source: "TomaMe web voting",
+          source: "Toabapa web voting",
         }),
       }),
     });
@@ -226,7 +226,7 @@ export class PaystackProvider implements PaymentProvider {
         mobile_money: { phone: input.phone, provider: input.provider },
         metadata: JSON.stringify({
           phone: input.phone,
-          source: "TomaMe USSD voting",
+          source: "Toabapa USSD voting",
         }),
       }),
     });

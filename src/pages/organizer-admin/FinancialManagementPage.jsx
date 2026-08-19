@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, WalletCards } from "lucide-react";
 import { AdminLayout, AdminLoading, AdminEmpty } from "./AdminShell.jsx";
 import { api } from "./adminApi.js";
@@ -258,7 +258,7 @@ export function FinancialManagementPage({ session }) {
               : "Unavailable"}
         </strong>
         <small>
-          This provider balance is separate from TomaMe wallet entitlement.
+          This provider balance is separate from Toabapa wallet entitlement.
         </small>
       </section>
       <form

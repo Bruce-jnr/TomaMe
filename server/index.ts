@@ -13,7 +13,7 @@ import {
 import { startFinancialReconciliationWorker, stopFinancialReconciliationWorker } from './workers/financial-reconciliation.worker.js';
 
 const server = app.listen(env.API_PORT, () => {
-  logger.info({ port: env.API_PORT }, 'TomaMe API listening');
+  logger.info({ port: env.API_PORT }, 'Toabapa API listening');
 });
 startWebhookRetryWorker();
 startAuditRetentionWorker();

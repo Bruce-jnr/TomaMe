@@ -1,8 +1,8 @@
-# TomaMe — Full-Stack Development Instructions for GPT Sol
+# Toabapa — Full-Stack Development Instructions for GPT Sol
 
 ## 1. Your Role
 
-You are the senior full-stack software engineer responsible for building **TomaMe**, a production-ready, multi-tenant paid public voting platform.
+You are the senior full-stack software engineer responsible for building **Toabapa**, a production-ready, multi-tenant paid public voting platform.
 
 You are responsible for:
 
@@ -34,7 +34,7 @@ Build the application with production architecture and maintainability in mind.
 
 # 2. Project Name
 
-**TomaMe**
+**Toabapa**
 
 Meaning:
 
@@ -44,7 +44,7 @@ Suggested tagline:
 
 **Vote. Support. Celebrate.**
 
-TomaMe is a paid public voting platform for:
+Toabapa is a paid public voting platform for:
 
 - Awards
 - Pageants
@@ -373,14 +373,14 @@ Do not create separate vote accounting logic for web and USSD.
 
 # 9. Multi-Tenant Architecture
 
-TomaMe is multi-tenant.
+Toabapa is multi-tenant.
 
 Each organization should operate independently.
 
 Example:
 
 ```text
-TomaMe
+Toabapa
 │
 ├── Ghana Student Awards
 │   ├── 2026 Awards
@@ -421,7 +421,7 @@ Do not create accounts for normal public voters.
 
 # 11. Super Admin
 
-Super Admin controls TomaMe itself.
+Super Admin controls Toabapa itself.
 
 Super Admin dashboard should support:
 
@@ -660,7 +660,7 @@ Implement:
 
 Homepage should include:
 
-- TomaMe branding
+- Toabapa branding
 - Search
 - Active events
 - Trending/featured candidates
@@ -1338,7 +1338,7 @@ Example:
 ```text
 Dial *XXX#
 
-Welcome to TomaMe
+Welcome to Toabapa
 
 1. Vote by Candidate Code
 2. Browse Events
@@ -1487,7 +1487,7 @@ Use SMS for:
 Example:
 
 ```text
-TomaMe: Your 50 votes for Ama Mensah were successfully counted. Amount: GH₵50. Ref: TOMA-X83KD92. Thank you for voting.
+Toabapa: Your 50 votes for Ama Mensah were successfully counted. Amount: GH₵50. Ref: TOMA-X83KD92. Thank you for voting.
 ```
 
 Do not claim votes were counted before payment/vote processing succeeds.
@@ -1890,7 +1890,7 @@ Gateway fees should be tracked separately where data is available.
 
 # 67. Settlements
 
-If TomaMe receives funds before organizer payout, implement settlement accounting.
+If Toabapa receives funds before organizer payout, implement settlement accounting.
 
 Fields:
 
@@ -2736,7 +2736,7 @@ Responsive intent
 Branding
 ```
 
-Then connect the design to the real TomaMe application architecture.
+Then connect the design to the real Toabapa application architecture.
 
 ---
 
@@ -2777,7 +2777,7 @@ Production build succeeds
 The first production-capable MVP should provide:
 
 ```text
-TomaMe Public Website
+Toabapa Public Website
 
 Organization Administration
 
@@ -2843,7 +2843,7 @@ Responsive UI based on /view
 # 103. Final Expected User Journey — Web
 
 ```text
-Visit TomaMe
+Visit Toabapa
       ↓
 Search Candidate
       ↓
@@ -2877,7 +2877,7 @@ SMS
 # 104. Final Expected User Journey — USSD
 
 ```text
-Dial TomaMe USSD
+Dial Toabapa USSD
       ↓
 Vote by Candidate Code
       ↓
@@ -2938,7 +2938,7 @@ The `view` folder defines the intended **visual design and structural reference*
 
 The backend/database architecture defined in this specification establishes the intended **business and system architecture**.
 
-The central TomaMe invariant is:
+The central Toabapa invariant is:
 
 ```text
 WEB ──┐
@@ -2958,4 +2958,4 @@ USSD ─┘     PAYMENT
 
 Never compromise payment verification, vote accounting, tenant isolation, or auditability for implementation convenience.
 
-Build TomaMe as a real paid-voting platform, not merely a UI prototype.
+Build Toabapa as a real paid-voting platform, not merely a UI prototype.
