@@ -259,7 +259,11 @@ function formatDate(date) {
 
 function EventCard({ event, featured = false }) {
   return (
-    <article className={`event-card ${featured ? 'featured' : ''}`}>
+    <Link
+      className={`event-card ${featured ? 'featured' : ''}`}
+      to={`/events/${event.slug}`}
+      aria-label={`Explore ${event.name}`}
+    >
       <div
         className="event-image"
         style={
@@ -288,12 +292,12 @@ function EventCard({ event, featured = false }) {
               : formatDate(event.startAt)}
           </span>
         </div>
-        <Link className="event-link" to={`/events/${event.slug}`}>
+        <span className="event-link">
           {event.publicStatus === 'ended' ? 'View results' : 'Explore event'}
           <ChevronRight />
-        </Link>
+        </span>
       </div>
-    </article>
+    </Link>
   );
 }
 

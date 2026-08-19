@@ -271,9 +271,11 @@ h3 {
   gap: 22px;
 }
 .event-card {
+  display: block;
+  height: 100%;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--line);
+  border: 1px solid #c1c9bb;
   border-radius: 8px;
   background: white;
   transition:
@@ -283,6 +285,10 @@ h3 {
 .event-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 16px 35px rgba(23, 33, 43, 0.09);
+}
+.event-card:focus-visible {
+  outline: 3px solid var(--primary-soft);
+  outline-offset: 3px;
 }
 .event-image {
   height: 210px;
@@ -1867,7 +1873,7 @@ h3 {
 }
 .contestant-portrait {
   width: 100%;
-  aspect-ratio: 9/10;
+  aspect-ratio: 10/10;
   position: relative;
   display: grid;
   place-items: center;
