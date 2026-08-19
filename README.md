@@ -58,7 +58,6 @@ The application uses a React frontend and a Node.js/Express API written in TypeS
 - Node.js 22 or later
 - npm
 - PostgreSQL 15 or later
-- Redis for future USSD sessions, background jobs, and caching
 
 On Windows PowerShell systems that block `npm.ps1`, use `npm.cmd` in place of `npm`.
 
@@ -92,7 +91,7 @@ On Windows PowerShell systems that block `npm.ps1`, use `npm.cmd` in place of `n
    npm run db:seed
    ```
 
-The API temporarily supports the legacy `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD` variables. Prisma CLI commands should use `DATABASE_URL`.
+The API and Prisma CLI both use `DATABASE_URL`.
 
 ## Environment Variables
 
@@ -106,9 +105,8 @@ The API temporarily supports the legacy `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USE
 | `NODE_ENV` | No | `development`, `test`, or `production` |
 | `LOG_LEVEL` | No | Pino log level |
 | `VITE_API_URL` | Deployment only | API origin when frontend and API use different origins |
-| `SEED_ADMIN_EMAIL` | No | Development organizer account email |
-| `SEED_ADMIN_PASSWORD` | No | Development organizer account password |
-| `REDIS_URL` | Production | Redis URL for sessions, USSD state, and distributed rate limits |
+| `SEED_ADMIN_EMAIL` | Seeding | Development organizer account email |
+| `SEED_ADMIN_PASSWORD` | Seeding | Development organizer account password |
 | `PAYSTACK_PUBLIC_KEY` | Integration | Paystack public key |
 | `PAYSTACK_SECRET_KEY` | Integration | Paystack secret key |
 | `PAYSTACK_WEBHOOK_SECRET` | Integration | Paystack webhook verification secret |
@@ -211,13 +209,13 @@ Content-Type: application/json
 
 The route implements: main menu, nominee-code lookup, vote quantity, price preview, acceptance, Paystack Ghana mobile-money authorization, and asynchronous webhook crediting. TomaMe never collects the customer's Mobile Money PIN; the carrier/Paystack authorization prompt handles it.
 
-The token must equal `ARKESEL_USSD_SECRET`. An edge proxy that injects the `x-arkesel-secret` header is preferable when available. Arkesel request fields are `sessionID`, `userID`, `newSession`, `msisdn`, `userData`, and `network`. Redis stores sessions with a two-minute TTL; development alone can use the in-memory fallback.
+The token must equal `ARKESEL_USSD_SECRET`. An edge proxy that injects the `x-arkesel-secret` header is preferable when available. Arkesel request fields are `sessionID`, `userID`, `newSession`, `msisdn`, `userData`, and `network`. PostgreSQL stores sessions with a two-minute expiry.
 
 ### Organizer password recovery
 
 An authenticated organizer must first register a recovery phone from the dashboard using their current password. The sign-in screen then provides **Forgot password?**, which sends a six-digit Arkesel SMS OTP. Reset challenges expire after 10 minutes, allow no more than five verification attempts, are single-use, and replace the password with an Argon2id hash.
 
-Both `ARKESEL_API_KEY` (or the legacy `ARKESEL_APIKEY`) and `ARKESEL_SENDER_ID` must be configured for OTP delivery.
+Both `ARKESEL_API_KEY` and `ARKESEL_SENDER_ID` must be configured for OTP delivery.
 
 Voters provide only a phone number. Paystack requires an email field during hosted transaction initialization, so the API supplies the event organization's configured email internally and does not store a voter email unless a future channel explicitly provides one.
 
@@ -236,9 +234,9 @@ Failed processing is persisted and retried with exponential backoff up to eight 
 
 ### Organizer MFA and secrets
 
-Organizers can enable SMS MFA from the dashboard after registering a trusted phone. Correct credentials create a ten-minute, five-attempt challenge, and a session is issued only after OTP verification. Logout revokes the Redis session immediately. Password resets increment the account session version and invalidate all existing sessions.
+Organizers can enable SMS MFA from the dashboard after registering a trusted phone. Correct credentials create a ten-minute, five-attempt challenge, and a session is issued only after OTP verification. Logout revokes the PostgreSQL-backed session immediately. Password resets increment the account session version and invalidate all existing sessions.
 
-Production secrets can be mounted through `*_FILE`, including `SESSION_SECRET_FILE`, `DATABASE_URL_FILE`, `REDIS_URL_FILE`, `PAYSTACK_SECRET_KEY_FILE`, and `ARKESEL_API_KEY_FILE`. Configure either the direct value or its file variant. See [SECURITY.md](SECURITY.md) for the focused penetration-test scope.
+Production secrets can be mounted through `*_FILE`, including `SESSION_SECRET_FILE`, `DATABASE_URL_FILE`, `PAYSTACK_SECRET_KEY_FILE`, and `ARKESEL_API_KEY_FILE`. Configure either the direct value or its file variant. See [SECURITY.md](SECURITY.md) for the focused penetration-test scope.
 
 ### Authentication
 

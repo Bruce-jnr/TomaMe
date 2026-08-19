@@ -15,7 +15,7 @@ import { publicRouter } from './routes/public.routes.js';
 import { voteOrdersRouter } from './routes/vote-orders.routes.js';
 import { ussdRouter } from './routes/ussd.routes.js';
 import { webhookRouter } from './routes/webhook.routes.js';
-import { distributedRateLimit } from './middleware/rate-limit.js';
+import { apiRateLimit } from './middleware/rate-limit.js';
 import { financialRouter } from './routes/financial.routes.js';
 import { strictTransportSecurity } from './security/http-headers.js';
 
@@ -46,13 +46,13 @@ app.use(
 app.use(cors({ origin: env.APP_URL, credentials: true }));
 app.use(
   '/api/webhooks',
-  distributedRateLimit('webhooks', { windowMs: 60_000, limit: 120 }),
+  apiRateLimit({ windowMs: 60_000, limit: 120 }),
   express.raw({ type: 'application/json', limit: '250kb' }),
   webhookRouter,
 );
 app.use(
   '/api/v1/ussd',
-  distributedRateLimit('ussd', { windowMs: 60_000, limit: 60 }),
+  apiRateLimit({ windowMs: 60_000, limit: 60 }),
   ussdRouter,
 );
 app.use(express.json({ limit: '100kb' }));
@@ -61,12 +61,12 @@ app.use(cookieParser());
 app.set('trust proxy', 1);
 app.use(
   '/api',
-  distributedRateLimit('global', { windowMs: 60_000, limit: 120 }),
+  apiRateLimit({ windowMs: 60_000, limit: 120 }),
 );
 app.use('/api/health', healthRouter);
 app.use(
   '/api/v1/auth/login',
-  distributedRateLimit('login', {
+  apiRateLimit({
     windowMs: 15 * 60_000,
     limit: 10,
     skipSuccessfulRequests: true,
@@ -84,7 +84,7 @@ const authRateLimitHandler = (_req: express.Request, res: express.Response) =>
     });
 app.use(
   '/api/v1/auth/password-reset/request',
-  distributedRateLimit('password-reset-request', {
+  apiRateLimit({
     windowMs: 15 * 60_000,
     limit: 5,
     handler: authRateLimitHandler,
@@ -92,7 +92,7 @@ app.use(
 );
 app.use(
   '/api/v1/auth/password-reset/confirm',
-  distributedRateLimit('password-reset-confirm', {
+  apiRateLimit({
     windowMs: 15 * 60_000,
     limit: 8,
     handler: authRateLimitHandler,
@@ -100,7 +100,7 @@ app.use(
 );
 app.use(
   '/api/v1/auth/mfa/setup',
-  distributedRateLimit('mfa-setup', {
+  apiRateLimit({
     windowMs: 15 * 60_000,
     limit: 3,
     handler: authRateLimitHandler,
@@ -108,7 +108,7 @@ app.use(
 );
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/organizer', organizerRouter);
-app.use('/api/v1/superadmin/financial', distributedRateLimit('financial', { windowMs: 60_000, limit: 30 }), financialRouter);
+app.use('/api/v1/superadmin/financial', apiRateLimit({ windowMs: 60_000, limit: 30 }), financialRouter);
 app.use(
   '/api/v1/public/candidate-images',
   express.static(path.resolve(process.cwd(), 'uploads', 'candidates'), {
@@ -127,13 +127,13 @@ app.use(
 );
 app.use(
   '/api/v1/payments',
-  distributedRateLimit('payments', { windowMs: 60_000, limit: 30 }),
+  apiRateLimit({ windowMs: 60_000, limit: 30 }),
   paymentsRouter,
 );
 app.use('/api/v1/public', publicRouter);
 app.use(
   '/api/v1/vote-orders',
-  distributedRateLimit('vote-orders', { windowMs: 60_000, limit: 20 }),
+  apiRateLimit({ windowMs: 60_000, limit: 20 }),
   voteOrdersRouter,
 );
 

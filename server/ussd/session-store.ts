@@ -1,47 +1,71 @@
-import { env } from '../config/env.js';
-import { redis } from '../state/redis.js';
+import type { Prisma } from '@prisma/client';
+import { z } from 'zod';
+import { prisma } from '../db/prisma.js';
 
-export type UssdStep =
-  'MAIN_MENU' | 'ENTER_CODE' | 'ENTER_QUANTITY' | 'CONFIRM_ORDER';
-export type UssdSession = {
-  step: UssdStep;
-  phone: string;
-  network: string;
-  candidateId?: string;
-  candidateName?: string;
-  categoryName?: string;
-  quantity?: number;
-  amount?: number;
-};
+const ussdSessionSchema = z.object({
+  step: z.enum(['MAIN_MENU', 'ENTER_CODE', 'ENTER_QUANTITY', 'CONFIRM_ORDER']),
+  phone: z.string(),
+  network: z.string(),
+  candidateId: z.string().optional(),
+  candidateName: z.string().optional(),
+  categoryName: z.string().optional(),
+  quantity: z.number().int().positive().optional(),
+  amount: z.number().int().nonnegative().optional(),
+});
 
-const memory = new Map<string, UssdSession & { expiresAt: number }>();
+export type UssdStep = z.infer<typeof ussdSessionSchema>['step'];
+export type UssdSession = z.infer<typeof ussdSessionSchema>;
+
 const ttlSeconds = 120;
 
 export async function saveUssdSession(id: string, session: UssdSession) {
-  if (redis) {
-    await redis.set(`ussd:${id}`, JSON.stringify(session), { EX: ttlSeconds });
-    return;
-  }
-  if (env.NODE_ENV === 'production')
-    throw new Error('Redis is required for production USSD sessions.');
-  memory.set(id, { ...session, expiresAt: Date.now() + ttlSeconds * 1000 });
+  const validated = ussdSessionSchema.parse(session);
+  const payload: Prisma.InputJsonObject = {
+    step: validated.step,
+    phone: validated.phone,
+    network: validated.network,
+    ...(validated.candidateId !== undefined
+      ? { candidateId: validated.candidateId }
+      : {}),
+    ...(validated.candidateName !== undefined
+      ? { candidateName: validated.candidateName }
+      : {}),
+    ...(validated.categoryName !== undefined
+      ? { categoryName: validated.categoryName }
+      : {}),
+    ...(validated.quantity !== undefined
+      ? { quantity: validated.quantity }
+      : {}),
+    ...(validated.amount !== undefined ? { amount: validated.amount } : {}),
+  };
+  await prisma.ussdSession.upsert({
+    where: { id },
+    create: {
+      id,
+      payload,
+      expiresAt: new Date(Date.now() + ttlSeconds * 1000),
+    },
+    update: { payload, expiresAt: new Date(Date.now() + ttlSeconds * 1000) },
+  });
 }
 
 export async function getUssdSession(id: string): Promise<UssdSession | null> {
-  if (redis) {
-    const value = await redis.get(`ussd:${id}`);
-    return value ? (JSON.parse(value) as UssdSession) : null;
-  }
-  const value = memory.get(id);
-  if (!value || value.expiresAt <= Date.now()) {
-    memory.delete(id);
+  const value = await prisma.ussdSession.findUnique({
+    where: { id },
+    select: { payload: true, expiresAt: true },
+  });
+  if (!value || value.expiresAt <= new Date()) {
+    if (value) await prisma.ussdSession.deleteMany({ where: { id } });
     return null;
   }
-  const { expiresAt: _expiresAt, ...session } = value;
-  return session;
+  const parsed = ussdSessionSchema.safeParse(value.payload);
+  if (!parsed.success) {
+    await prisma.ussdSession.deleteMany({ where: { id } });
+    return null;
+  }
+  return parsed.data;
 }
 
 export async function deleteUssdSession(id: string) {
-  if (redis) await redis.del(`ussd:${id}`);
-  else memory.delete(id);
+  await prisma.ussdSession.deleteMany({ where: { id } });
 }

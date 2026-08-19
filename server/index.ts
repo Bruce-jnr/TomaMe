@@ -2,7 +2,6 @@ import { app } from './app.js';
 import { env } from './config/env.js';
 import { logger } from './config/logger.js';
 import { prisma } from './db/prisma.js';
-import { connectRedis, disconnectRedis } from './state/redis.js';
 import {
   startWebhookRetryWorker,
   stopWebhookRetryWorker,
@@ -13,7 +12,6 @@ import {
 } from './workers/audit-retention.worker.js';
 import { startFinancialReconciliationWorker, stopFinancialReconciliationWorker } from './workers/financial-reconciliation.worker.js';
 
-await connectRedis();
 const server = app.listen(env.API_PORT, () => {
   logger.info({ port: env.API_PORT }, 'TomaMe API listening');
 });
@@ -27,7 +25,6 @@ async function shutdown(signal: string) {
     stopWebhookRetryWorker();
     stopAuditRetentionWorker();
     stopFinancialReconciliationWorker();
-    await disconnectRedis();
     await prisma.$disconnect();
     process.exit(0);
   });

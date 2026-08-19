@@ -255,10 +255,10 @@ PostgreSQL
 Prisma
 ```
 
-## Cache / Temporary Sessions
+## Temporary Sessions
 
 ```text
-Redis
+PostgreSQL
 ```
 
 ## Background Jobs
@@ -1281,7 +1281,7 @@ ussd/
 
 # 42. USSD Session Storage
 
-Use Redis for active USSD sessions.
+Use PostgreSQL for active USSD sessions with short expiry timestamps.
 
 Store approximately:
 
@@ -1973,7 +1973,7 @@ WebhookLog
 Notification
 ```
 
-USSD sessions may live primarily in Redis.
+USSD sessions live in PostgreSQL and are deleted after expiry.
 
 ---
 
@@ -2140,8 +2140,6 @@ Use environment variables for:
 
 ```text
 DATABASE_URL
-REDIS_URL
-
 PAYSTACK_PUBLIC_KEY
 PAYSTACK_SECRET_KEY
 PAYSTACK_WEBHOOK_SECRET
@@ -2345,7 +2343,7 @@ Use:
 
 - Next.js image optimization where appropriate
 - Caching where safe
-- Redis for high-frequency non-authoritative cache
+- In-process caching for short-lived non-authoritative data
 - Database indexes
 - Pagination
 
@@ -2592,7 +2590,6 @@ Requirements
 Local installation
 Environment variables
 Database setup
-Redis setup
 Migrations
 Seed data
 Running development server

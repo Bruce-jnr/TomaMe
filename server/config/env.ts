@@ -19,7 +19,6 @@ const normalizedEnv = {
   ...process.env,
   DATABASE_URL: secret("DATABASE_URL"),
   SESSION_SECRET: secret("SESSION_SECRET"),
-  REDIS_URL: secret("REDIS_URL"),
   PAYSTACK_PUBLIC_KEY: secret("PAYSTACK_PUBLIC_KEY"),
   PAYSTACK_SECRET_KEY: secret("PAYSTACK_SECRET_KEY"),
   ARKESEL_API_KEY: secret("ARKESEL_API_KEY"),
@@ -39,7 +38,6 @@ const envSchema = z.object({
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace"])
     .default("info"),
-  REDIS_URL: z.string().url().optional(),
   PAYSTACK_PUBLIC_KEY: z.string().min(1).optional(),
   PAYSTACK_SECRET_KEY: z.string().min(1).optional(),
   PAYSTACK_WEBHOOK_SECRET: z.string().min(1).optional(),
@@ -62,7 +60,6 @@ export const env = parsed.data;
 
 if (env.NODE_ENV === "production") {
   const missing = [
-    !env.REDIS_URL && "REDIS_URL",
     !env.PAYSTACK_SECRET_KEY && "PAYSTACK_SECRET_KEY",
     !env.ARKESEL_USSD_SECRET && "ARKESEL_USSD_SECRET",
     !env.ARKESEL_API_KEY && "ARKESEL_API_KEY",
