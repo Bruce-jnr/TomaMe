@@ -1,9 +1,11 @@
+import { useEffect, useState } from "react";
 import { useNavigate, Link, NavLink } from "react-router-dom";
 import {
   CalendarDays,
   ClipboardList,
   LayoutDashboard,
   LogOut,
+  Menu,
   ReceiptText,
   ShieldCheck,
   Settings,
@@ -14,8 +16,59 @@ import {
 } from "lucide-react";
 import logo from "../../assets/logo.png";
 import { api } from "./adminApi.js";
+
+function DashboardNavigation({ session, onNavigate }) {
+  return (
+    <nav aria-label="Dashboard navigation">
+      <NavLink to="/dashboard" end onClick={onNavigate}>
+        <LayoutDashboard /> Overview
+      </NavLink>
+      <NavLink to="/dashboard/events" onClick={onNavigate}>
+        <CalendarDays /> Events
+      </NavLink>
+      <NavLink to="/dashboard/categories" onClick={onNavigate}>
+        <Tag /> Categories
+      </NavLink>
+      <NavLink to="/dashboard/candidates" onClick={onNavigate}>
+        <Users /> Candidates
+      </NavLink>
+      <NavLink to="/dashboard/payments" onClick={onNavigate}>
+        <ReceiptText /> Payments
+      </NavLink>
+      {session.globalRole === "SUPER_ADMIN" && (
+        <>
+          <NavLink to="/dashboard/settings" onClick={onNavigate}>
+            <Settings /> Settings
+          </NavLink>
+          <NavLink to="/dashboard/administrators" onClick={onNavigate}>
+            <ShieldCheck /> Administrators
+          </NavLink>
+          <NavLink to="/dashboard/financial" onClick={onNavigate}>
+            <WalletCards /> Financial
+          </NavLink>
+          <NavLink to="/dashboard/audit-logs" onClick={onNavigate}>
+            <ClipboardList /> Audit logs
+          </NavLink>
+        </>
+      )}
+    </nav>
+  );
+}
+
 export function AdminLayout({ session, title, description, action, children }) {
   const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const closeOnEscape = (event) =>
+      event.key === "Escape" && setMenuOpen(false);
+    document.addEventListener("keydown", closeOnEscape);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      document.body.style.overflow = "";
+    };
+  }, [menuOpen]);
   async function logout() {
     await api("/api/v1/auth/logout", { method: "POST" });
     navigate(
@@ -30,52 +83,7 @@ export function AdminLayout({ session, title, description, action, children }) {
         <Link className="admin-brand" to="/">
           <img src={logo} alt="Toabapa" />
         </Link>
-        <nav aria-label="Organizer navigation">
-          <NavLink to="/dashboard" end>
-            <LayoutDashboard />
-            Overview
-          </NavLink>
-          <NavLink to="/dashboard/events">
-            <CalendarDays />
-            Events
-          </NavLink>
-          <NavLink to="/dashboard/categories">
-            <Tag />
-            Categories
-          </NavLink>
-          <NavLink to="/dashboard/candidates">
-            <Users />
-            Candidates
-          </NavLink>
-          <NavLink to="/dashboard/payments">
-            <ReceiptText />
-            Payments
-          </NavLink>
-          {session.globalRole === "SUPER_ADMIN" && (
-            <NavLink to="/dashboard/settings">
-              <Settings />
-              Settings
-            </NavLink>
-          )}
-          {session.globalRole === "SUPER_ADMIN" && (
-            <NavLink to="/dashboard/administrators">
-              <ShieldCheck />
-              Administrators
-            </NavLink>
-          )}
-          {session.globalRole === "SUPER_ADMIN" && (
-            <NavLink to="/dashboard/financial">
-              <WalletCards />
-              Financial
-            </NavLink>
-          )}
-          {session.globalRole === "SUPER_ADMIN" && (
-            <NavLink to="/dashboard/audit-logs">
-              <ClipboardList />
-              Audit logs
-            </NavLink>
-          )}
-        </nav>
+        <DashboardNavigation session={session} />
         <div className="admin-profile">
           <span>
             {session.user.name
@@ -106,62 +114,53 @@ export function AdminLayout({ session, title, description, action, children }) {
           </div>
           {action}
           <button
-            className="mobile-admin-logout"
-            onClick={logout}
+            className="mobile-admin-menu-trigger"
+            onClick={() => setMenuOpen(true)}
             type="button"
-            title="Sign out"
-            aria-label="Sign out"
+            title="Open dashboard menu"
+            aria-label="Open dashboard menu"
+            aria-expanded={menuOpen}
+            aria-controls="mobile-admin-menu"
           >
-            <LogOut />
+            <Menu />
           </button>
         </header>
         {children}
       </div>
-      <nav
-        className={`mobile-admin-nav ${session.globalRole === "SUPER_ADMIN" ? "is-superadmin" : "is-event-admin"}`}
-        aria-label="Organizer navigation"
-      >
-        <NavLink to="/dashboard/events">
-          <CalendarDays />
-          <span>Events</span>
-        </NavLink>
-        <NavLink to="/dashboard/categories">
-          <Tag />
-          <span>Categories</span>
-        </NavLink>
-        <NavLink to="/dashboard/candidates">
-          <Users />
-          <span>Candidates</span>
-        </NavLink>
-        <NavLink to="/dashboard/payments">
-          <ReceiptText />
-          <span>Payments</span>
-        </NavLink>
-        {session.globalRole === "SUPER_ADMIN" && (
-          <NavLink to="/dashboard/settings">
-            <Settings />
-            <span>Settings</span>
-          </NavLink>
-        )}
-        {session.globalRole === "SUPER_ADMIN" && (
-          <NavLink to="/dashboard/administrators">
-            <ShieldCheck />
-            <span>Admins</span>
-          </NavLink>
-        )}
-        {session.globalRole === "SUPER_ADMIN" && (
-          <NavLink to="/dashboard/financial">
-            <WalletCards />
-            <span>Wallet</span>
-          </NavLink>
-        )}
-        {session.globalRole === "SUPER_ADMIN" && (
-          <NavLink to="/dashboard/audit-logs">
-            <ClipboardList />
-            <span>Audit</span>
-          </NavLink>
-        )}
-      </nav>
+      {menuOpen && (
+        <div
+          className="admin-menu-backdrop"
+          onMouseDown={(event) =>
+            event.target === event.currentTarget && setMenuOpen(false)
+          }
+        >
+          <aside className="admin-menu-panel" id="mobile-admin-menu">
+            <header>
+              <img src={logo} alt="Toabapa" />
+              <button
+                className="icon-button"
+                type="button"
+                aria-label="Close dashboard menu"
+                onClick={() => setMenuOpen(false)}
+              >
+                <X />
+              </button>
+            </header>
+            <DashboardNavigation
+              session={session}
+              onNavigate={() => setMenuOpen(false)}
+            />
+            <footer>
+              <div>
+                <strong>{session.user.name}</strong>
+              </div>
+              <button type="button" onClick={logout}>
+                <LogOut /> Sign out
+              </button>
+            </footer>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }

@@ -6,11 +6,12 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronRight,
-  Compass,
   CreditCard,
-  Home as HomeIcon,
   LoaderCircle,
+  Mail,
+  MessageCircle,
   Menu,
+  Phone,
   Search,
   ShieldCheck,
   Smartphone,
@@ -102,6 +103,7 @@ function Shell({ children }) {
         <nav className="desktop-nav" aria-label="Primary navigation">
           <NavLink to="/">Home</NavLink>
           <NavLink to="/events">Explore</NavLink>
+          <NavLink to="/contact">Contact</NavLink>
         </nav>
         <div className="header-actions">
           <Link className="organizer-link" to="/organizers">
@@ -152,6 +154,12 @@ function Shell({ children }) {
                 Explore events <ChevronRight />
               </Link>
               <Link
+                to="/events?focus=search"
+                onClick={() => setMenuOpen(false)}
+              >
+                Search <ChevronRight />
+              </Link>
+              <Link
                 className="mobile-organizer-menu-link"
                 to="/organizers"
                 onClick={() => setMenuOpen(false)}
@@ -163,6 +171,9 @@ function Shell({ children }) {
               </Link>
               <Link to="/privacy" onClick={() => setMenuOpen(false)}>
                 Privacy Policy <ChevronRight />
+              </Link>
+              <Link to="/contact" onClick={() => setMenuOpen(false)}>
+                Contact us <ChevronRight />
               </Link>
               <Link to="/terms" onClick={() => setMenuOpen(false)}>
                 Terms &amp; Conditions <ChevronRight />
@@ -178,25 +189,12 @@ function Shell({ children }) {
         <nav aria-label="Footer navigation">
           <Link to="/events">Explore events</Link>
           <Link to="/organizers">For organizers</Link>
+          <Link to="/contact">Contact us</Link>
           <Link to="/privacy">Privacy</Link>
           <Link to="/terms">Terms</Link>
           <Link to="/#faq">FAQ</Link>
         </nav>
       </footer>
-      <nav className="mobile-nav" aria-label="Mobile navigation">
-        <NavLink to="/" end>
-          <HomeIcon />
-          <span>Home</span>
-        </NavLink>
-        <NavLink to="/events">
-          <Compass />
-          <span>Explore</span>
-        </NavLink>
-        <Link to="/events?focus=search">
-          <Search />
-          <span>Search</span>
-        </Link>
-      </nav>
     </div>
   );
 }
@@ -756,14 +754,17 @@ function CategoryContestants({
   eventStatus,
   onVote,
 }) {
-  const resultLabel =
-    result?.visibility === 'EXACT_TOTALS'
-      ? `${(result.totalVotes || 0).toLocaleString()} current votes`
-      : result?.visibility === 'PERCENTAGES'
-        ? 'Current percentages'
-        : result?.visibility === 'RANKING_ONLY'
-          ? 'Current ranking'
-          : 'Results are private';
+  const rankedCandidates = [...candidates].sort(
+    (left, right) =>
+      (left.result?.rank ?? Number.MAX_SAFE_INTEGER) -
+        (right.result?.rank ?? Number.MAX_SAFE_INTEGER) ||
+      left.name.localeCompare(right.name),
+  );
+  const resultsVisible = [
+    'EXACT_TOTALS',
+    'PERCENTAGES',
+    'RANKING_ONLY',
+  ].includes(result?.visibility);
   return (
     <section className="category-contestant-group">
       <div className="category-statistics">
@@ -775,27 +776,68 @@ function CategoryContestants({
               `${candidates.length} contestants in this category.`}
           </p>
         </div>
-        <div className="category-stat-values">
-          <span>
-            <small>Contestants</small>
-            <strong>{candidates.length}</strong>
-          </span>
-          <span>
-            <small>Vote status</small>
-            <strong>{resultLabel}</strong>
-          </span>
-          {result?.leader && (
-            <span>
-              <small>Current leader</small>
-              <strong>{result.leader.name}</strong>
-              <em>
-                {result.visibility === 'EXACT_TOTALS'
-                  ? `${result.leader.votes.toLocaleString()} votes`
-                  : result.visibility === 'PERCENTAGES'
-                    ? `${result.leader.percentage}%`
-                    : result.leader.candidateCode}
-              </em>
-            </span>
+        <div className="public-category-results">
+          {resultsVisible && rankedCandidates.length ? (
+            <div className="category-result-list">
+              {rankedCandidates.map((candidate, index) => {
+                const votes = candidate.result?.votes ?? 0;
+                const percentage =
+                  candidate.result?.percentage ??
+                  (result?.totalVotes ? (votes / result.totalVotes) * 100 : 0);
+                const initials = candidate.name
+                  .split(' ')
+                  .map((part) => part[0])
+                  .join('')
+                  .slice(0, 2);
+                return (
+                  <article
+                    className="category-result-candidate"
+                    key={candidate.id}
+                  >
+                    <strong className="result-rank">
+                      {candidate.result?.rank ?? index + 1}
+                    </strong>
+                    <span
+                      className={`result-photo ${candidate.photoUrl ? 'has-photo' : ''}`}
+                    >
+                      {candidate.photoUrl ? (
+                        <img src={candidate.photoUrl} alt="" />
+                      ) : (
+                        initials
+                      )}
+                    </span>
+                    <div className="result-candidate-name">
+                      <strong>{candidate.name}</strong>
+                      <small>{candidate.candidateCode}</small>
+                    </div>
+                    <div className="result-progress">
+                      <span style={{ width: `${percentage}%` }} />
+                    </div>
+                    <div className="result-total">
+                      <strong>
+                        {result.visibility === 'EXACT_TOTALS'
+                          ? votes.toLocaleString()
+                          : result.visibility === 'PERCENTAGES'
+                            ? `${percentage.toFixed(1)}%`
+                            : `#${candidate.result?.rank ?? index + 1}`}
+                      </strong>
+                      <small>
+                        {result.visibility === 'EXACT_TOTALS'
+                          ? `${percentage.toFixed(1)}%`
+                          : result.visibility === 'PERCENTAGES'
+                            ? `Rank #${candidate.result?.rank ?? index + 1}`
+                            : 'Rank'}
+                      </small>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="public-results-private">
+              <strong>{candidates.length} contestants</strong>
+              <span>Voting statistics are currently private.</span>
+            </div>
           )}
         </div>
       </div>
@@ -1399,7 +1441,7 @@ function OrganizerPage() {
               <Smartphone />
             </div>
             <span>USSD voting</span>
-            <h3>Candidate-code voting beyond the browser.</h3>
+            <h3>Nominee-code voting beyond the browser.</h3>
             <p>
               The same event rules and vote ledger can serve short-code
               sessions, mobile money requests, and confirmation messages.
@@ -1407,7 +1449,7 @@ function OrganizerPage() {
             <ul>
               <li>
                 <CheckCircle2 />
-                Fast candidate-code lookup
+                Fast Nominee-code lookup
               </li>
               <li>
                 <CheckCircle2 />
@@ -1419,89 +1461,6 @@ function OrganizerPage() {
               </li>
             </ul>
           </article>
-        </div>
-      </section>
-
-      <section className="organizer-dashboard-preview">
-        <div className="preview-copy">
-          <span className="eyebrow">Operational visibility</span>
-          <h2>Know what is happening while voting is live.</h2>
-          <p>
-            Monitor the numbers that matter without loading raw transaction
-            history into the browser.
-          </p>
-          <ul>
-            <li>
-              <CheckCircle2 />
-              Votes and revenue over time
-            </li>
-            <li>
-              <CheckCircle2 />
-              Web versus USSD performance
-            </li>
-            <li>
-              <CheckCircle2 />
-              Top candidates and categories
-            </li>
-            <li>
-              <CheckCircle2 />
-              Payment success and failure rates
-            </li>
-          </ul>
-        </div>
-        <div
-          className="analytics-window"
-          aria-label="Example organizer analytics"
-        >
-          <div className="analytics-top">
-            <div>
-              <small>Event performance</small>
-              <strong>Live overview</strong>
-            </div>
-            <span>Last 7 days</span>
-          </div>
-          <div className="metric-row">
-            <div>
-              <small>Total votes</small>
-              <strong>24,860</strong>
-              <em>+18.4%</em>
-            </div>
-            <div>
-              <small>Gross revenue</small>
-              <strong>GH₵24,860</strong>
-              <em>+16.1%</em>
-            </div>
-            <div>
-              <small>Success rate</small>
-              <strong>94.8%</strong>
-              <em>+2.3%</em>
-            </div>
-          </div>
-          <div className="chart-area">
-            <div className="chart-label">
-              <span>Votes over time</span>
-              <span>Web&nbsp;&nbsp; USSD</span>
-            </div>
-            <div className="bar-chart">
-              {[38, 52, 46, 67, 59, 78, 72, 88, 64, 94, 81, 100].map(
-                (height, index) => (
-                  <i style={{ height: `${height}%` }} key={index}>
-                    <b style={{ height: `${Math.max(18, height * 0.38)}%` }} />
-                  </i>
-                ),
-              )}
-            </div>
-          </div>
-          <div className="analytics-bottom">
-            <span>
-              <i />
-              Web<strong>72%</strong>
-            </span>
-            <span>
-              <i />
-              USSD<strong>28%</strong>
-            </span>
-          </div>
         </div>
       </section>
 
@@ -1543,6 +1502,112 @@ function PlaceholderPage() {
         <Link className="primary-button" to="/events">
           Explore events
         </Link>
+      </section>
+    </Shell>
+  );
+}
+
+const SUPPORT_EMAIL = 'support@toabapa.com';
+
+function ContactPage() {
+  return (
+    <Shell>
+      <section className="contact-page">
+        <header>
+          <span className="eyebrow">Contact us</span>
+          <h1>How can we help?</h1>
+          <p>
+            Tell us what happened and include the details that will help us
+            investigate quickly.
+          </p>
+        </header>
+        <div className="contact-layout">
+          <div className="contact-guidance">
+            <article>
+              <MessageCircle />
+              <div>
+                <h2>WhatsApp</h2>
+                <p>Chat with our support team on WhatsApp.</p>
+                <a
+                  href="https://wa.me/233207175809"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  +233 20 717 5809
+                </a>
+              </div>
+            </article>
+            <article>
+              <Phone />
+              <div>
+                <h2>Call us</h2>
+                <p>Call our support line for direct assistance.</p>
+                <a href="tel:+233546534902">+233 54 653 4902</a>
+              </div>
+            </article>
+            <article>
+              <Mail />
+              <div>
+                <h2>Email support</h2>
+                <p>For platform access, account, or general support.</p>
+                <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
+              </div>
+            </article>
+            <article>
+              <CreditCard />
+              <div>
+                <h2>Payment or voting issue</h2>
+                <p>
+                  Include the event, candidate, mobile number used, payment
+                  reference, and approximate transaction time.
+                </p>
+              </div>
+            </article>
+            <article>
+              <ShieldCheck />
+              <div>
+                <h2>Event-specific questions</h2>
+                <p>
+                  Contact the event organizer directly for eligibility, prizes,
+                  results, refunds, or event rules.
+                </p>
+              </div>
+            </article>
+          </div>
+          <form
+            className="contact-form"
+            action={`mailto:${SUPPORT_EMAIL}`}
+            method="post"
+            encType="text/plain"
+          >
+            <h2>Send a message</h2>
+            <p>This form opens your email app with the details you provide.</p>
+            <label>
+              Your name
+              <input name="name" autoComplete="name" required />
+            </label>
+            <label>
+              Email address
+              <input name="email" type="email" autoComplete="email" required />
+            </label>
+            <label>
+              Subject
+              <select name="subject" defaultValue="General support">
+                <option>General support</option>
+                <option>Payment or voting issue</option>
+                <option>Organizer account</option>
+                <option>Privacy request</option>
+              </select>
+            </label>
+            <label>
+              Message
+              <textarea name="message" rows="6" required />
+            </label>
+            <button className="primary-action" type="submit">
+              <Mail /> Send message
+            </button>
+          </form>
+        </div>
       </section>
     </Shell>
   );
@@ -1751,6 +1816,7 @@ function App() {
         />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
+        <Route path="/contact" element={<ContactPage />} />
         <Route path="/dashboard" element={<DashboardRoute />} />
         <Route path="/dashboard/events/new" element={<CreateEventRoute />} />
         <Route path="/dashboard/events" element={<EventsRoute />} />

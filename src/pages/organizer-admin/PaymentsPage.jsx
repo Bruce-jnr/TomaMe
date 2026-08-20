@@ -99,40 +99,35 @@ export function PaymentsPage({ session }) {
         className={`payment-summary ${loading ? 'payment-summary-skeleton' : ''}`}
         aria-busy={loading}
       >
-        {loading ? (
-          [0, 1, 2, 3, 4].map((item) => (
-            <div key={item} aria-hidden="true">
-              <span className="skeleton-line short" />
-              <span className="skeleton-line title" />
-            </div>
-          ))
-        ) : (
-          <>
-            <div>
-              <small>Transactions</small>
-              <strong>{data.summary.total.toLocaleString()}</strong>
-            </div>
-            <div>
-              <small>Confirmed revenue</small>
-              <strong>
-                GH₵
-                {revenue.replace(/^GHS /, '')}
-              </strong>
-            </div>
-            <div>
-              <small>Votes credited</small>
-              <strong>{data.summary.creditedVotes.toLocaleString()}</strong>
-            </div>
-            <div>
-              <small>Success rate</small>
-              <strong>{data.summary.successRate.toFixed(1)}%</strong>
-            </div>
-            <div>
-              <small>Failed payments</small>
-              <strong>{data.summary.failed.toLocaleString()}</strong>
-            </div>
-          </>
-        )}
+        <section className="payment-summary-card">
+          <h2>Payment statistics</h2>
+          <dl>
+            {(loading
+              ? Array.from({ length: 5 }, (_, index) => ({ key: index }))
+              : [
+                  { key: 'success', label: 'Success rate', value: `${data.summary.successRate.toFixed(1)}%` },
+                  { key: 'failed', label: 'Failed payments', value: data.summary.failed.toLocaleString() },
+                  { key: 'transactions', label: 'Transactions', value: data.summary.total.toLocaleString() },
+                  { key: 'revenue', label: 'Confirmed revenue', value: `GH₵${revenue.replace(/^GHS /, '')}` },
+                  { key: 'votes', label: 'Votes credited', value: data.summary.creditedVotes.toLocaleString() },
+                ]
+            ).map((item) => (
+              <div key={item.key} aria-hidden={loading || undefined}>
+                {loading ? (
+                  <>
+                    <span className="skeleton-line medium" />
+                    <span className="skeleton-line short" />
+                  </>
+                ) : (
+                  <>
+                    <dt>{item.label}</dt>
+                    <dd>{item.value}</dd>
+                  </>
+                )}
+              </div>
+            ))}
+          </dl>
+        </section>
       </div>
       {!eventId && data.eventSummaries.length > 1 && (
         <section className="event-payment-breakdown">
