@@ -2191,14 +2191,51 @@ h3 {
     padding: 55px 16px 75px;
   }
   .contestant-grid {
-    grid-template-columns: minmax(0, 300px);
-    justify-content: center;
+    display: flex;
+    width: calc(100% + 32px);
+    margin-inline: -16px;
+    padding-inline: 16px;
+    gap: 14px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-padding-inline: 16px;
+    scroll-snap-type: inline mandatory;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .contestant-grid::-webkit-scrollbar {
+    display: none;
+  }
+  .contestant-card {
+    width: min(82vw, 300px);
+    min-width: min(82vw, 300px);
+    flex: 0 0 min(82vw, 300px);
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
   }
   .category-contestant-groups {
     gap: 45px;
   }
   .category-statistics {
     padding: 19px 16px;
+  }
+  .public-category-results {
+    width: 100%;
+    padding-inline: 10px;
+    overflow: hidden;
+  }
+  .public-category-results .category-result-candidate {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: 24px 40px minmax(0, 1fr) 54px;
+    gap: 8px;
+  }
+  .public-category-results .result-progress {
+    display: none;
+  }
+  .public-category-results .result-photo {
+    width: 36px;
+    height: 42px;
   }
   .category-stat-values {
     grid-template-columns: 1fr;
@@ -4413,6 +4450,12 @@ h3 {
   border-radius: var(--radius-md);
   background: var(--color-surface);
 }
+.category-card-group {
+  display: contents;
+}
+.mobile-category-results {
+  display: none;
+}
 .category-results-panel > header {
   display: flex;
   align-items: flex-start;
@@ -4675,6 +4718,15 @@ h3 {
   }
   .management-grid {
     grid-template-columns: 1fr;
+  }
+  .mobile-category-results {
+    display: block;
+  }
+  .mobile-category-results .category-results-panel {
+    margin-top: 0;
+  }
+  .desktop-category-results {
+    display: none;
   }
   .organizer-login {
     grid-template-columns: 1fr;

@@ -94,9 +94,9 @@ export function CategoriesPage({ session }) {
       ) : items.length ? (
         <div className="management-grid">
           {items.map((item) => (
-            <article
+            <div className="category-card-group" key={item.id}>
+              <article
               className={`management-card category-drilldown-card ${selectedCategoryId === item.id ? "selected" : ""}`}
-              key={item.id}
               role="button"
               tabIndex="0"
               aria-expanded={selectedCategoryId === item.id}
@@ -145,7 +145,19 @@ export function CategoriesPage({ session }) {
                   </button>
                 </div>
               </footer>
-            </article>
+              </article>
+              {selectedCategoryId === item.id && (
+                <div className="mobile-category-results">
+                  <CategoryCandidatesPanel
+                    category={item}
+                    candidates={candidates.filter(
+                      (candidate) => candidate.categoryId === item.id,
+                    )}
+                    onClose={() => setSelectedCategoryId("")}
+                  />
+                </div>
+              )}
+            </div>
           ))}
         </div>
       ) : (
@@ -156,13 +168,15 @@ export function CategoriesPage({ session }) {
         />
       )}
       {selectedCategoryId && (
-        <CategoryCandidatesPanel
-          category={items.find((item) => item.id === selectedCategoryId)}
-          candidates={candidates.filter(
-            (candidate) => candidate.categoryId === selectedCategoryId,
-          )}
-          onClose={() => setSelectedCategoryId("")}
-        />
+        <div className="desktop-category-results">
+          <CategoryCandidatesPanel
+            category={items.find((item) => item.id === selectedCategoryId)}
+            candidates={candidates.filter(
+              (candidate) => candidate.categoryId === selectedCategoryId,
+            )}
+            onClose={() => setSelectedCategoryId("")}
+          />
+        </div>
       )}
       {showForm && (
         <CategoryForm
