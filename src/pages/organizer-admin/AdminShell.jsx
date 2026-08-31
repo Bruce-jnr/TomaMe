@@ -136,7 +136,13 @@ export function AdminLayout({ session, title, description, action, children }) {
         >
           <aside className="admin-menu-panel" id="mobile-admin-menu">
             <header>
-              <img src={logo} alt="Toabapa" />
+              <Link
+                to="/"
+                aria-label="Toabapa home"
+                onClick={() => setMenuOpen(false)}
+              >
+                <img src={logo} alt="Toabapa" />
+              </Link>
               <button
                 className="icon-button"
                 type="button"

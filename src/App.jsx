@@ -135,7 +135,13 @@ function Shell({ children }) {
             aria-label="Site menu"
           >
             <header>
-              <img src={logo} alt="Toabapa" />
+              <Link
+                to="/"
+                aria-label="Toabapa home"
+                onClick={() => setMenuOpen(false)}
+              >
+                <img src={logo} alt="Toabapa" />
+              </Link>
               <button
                 className="icon-button"
                 type="button"
@@ -184,7 +190,9 @@ function Shell({ children }) {
       )}
       <main>{children}</main>
       <footer className="site-footer">
-        <img src={logo} alt="Toabapa" />
+        <Link to="/" aria-label="Toabapa home">
+          <img src={logo} alt="Toabapa" />
+        </Link>
         <p>&copy; {new Date().getFullYear()} Toabapa. All rights reserved.</p>
         <nav aria-label="Footer navigation">
           <Link to="/events">Explore events</Link>

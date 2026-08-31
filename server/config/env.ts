@@ -1,6 +1,6 @@
-import "dotenv/config";
-import { readFileSync } from "node:fs";
-import { z } from "zod";
+import 'dotenv/config';
+import { readFileSync } from 'node:fs';
+import { z } from 'zod';
 
 function secret(name: string): string | undefined {
   const direct = process.env[name];
@@ -9,7 +9,7 @@ function secret(name: string): string | undefined {
     throw new Error(`Configure only one of ${name} or ${name}_FILE.`);
   if (!file) return direct;
   try {
-    return readFileSync(file, "utf8").trim();
+    return readFileSync(file, 'utf8').trim();
   } catch {
     throw new Error(`Unable to read secret file for ${name}.`);
   }
@@ -17,27 +17,27 @@ function secret(name: string): string | undefined {
 
 const normalizedEnv = {
   ...process.env,
-  DATABASE_URL: secret("DATABASE_URL"),
-  SESSION_SECRET: secret("SESSION_SECRET"),
-  PAYSTACK_PUBLIC_KEY: secret("PAYSTACK_PUBLIC_KEY"),
-  PAYSTACK_SECRET_KEY: secret("PAYSTACK_SECRET_KEY"),
-  ARKESEL_API_KEY: secret("ARKESEL_API_KEY"),
-  ARKESEL_SENDER_ID: secret("ARKESEL_SENDER_ID"),
-  ARKESEL_USSD_SECRET: secret("ARKESEL_USSD_SECRET"),
+  DATABASE_URL: secret('DATABASE_URL'),
+  SESSION_SECRET: secret('SESSION_SECRET'),
+  PAYSTACK_PUBLIC_KEY: secret('PAYSTACK_PUBLIC_KEY'),
+  PAYSTACK_SECRET_KEY: secret('PAYSTACK_SECRET_KEY'),
+  ARKESEL_API_KEY: secret('ARKESEL_API_KEY'),
+  ARKESEL_SENDER_ID: secret('ARKESEL_SENDER_ID'),
+  ARKESEL_USSD_SECRET: secret('ARKESEL_USSD_SECRET'),
 };
 
 const envSchema = z.object({
   NODE_ENV: z
-    .enum(["development", "test", "production"])
-    .default("development"),
+    .enum(['development', 'test', 'production'])
+    .default('development'),
   API_PORT: z.coerce.number().int().min(1).max(65535).default(4000),
   DATABASE_URL: z.string().url(),
-  APP_URL: z.string().url().default("http://localhost:5173"),
-  API_URL: z.string().url().default("http://localhost:4000"),
+  APP_URL: z.string().url().default('http://localhost:5173'),
+  API_URL: z.string().url().default('http://localhost:4000'),
   SESSION_SECRET: z.string().min(32),
   LOG_LEVEL: z
-    .enum(["fatal", "error", "warn", "info", "debug", "trace"])
-    .default("info"),
+    .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])
+    .default('info'),
   PAYSTACK_PUBLIC_KEY: z.string().min(1).optional(),
   PAYSTACK_SECRET_KEY: z.string().min(1).optional(),
   PAYSTACK_WEBHOOK_SECRET: z.string().min(1).optional(),
@@ -51,31 +51,31 @@ const parsed = envSchema.safeParse(normalizedEnv);
 
 if (!parsed.success) {
   const details = parsed.error.issues.map(
-    (issue) => `${issue.path.join(".")}: ${issue.message}`,
+    (issue) => `${issue.path.join('.')}: ${issue.message}`,
   );
-  throw new Error(`Invalid environment configuration:\n${details.join("\n")}`);
+  throw new Error(`Invalid environment configuration:\n${details.join('\n')}`);
 }
 
 export const env = parsed.data;
 
-if (env.NODE_ENV === "production") {
+if (env.NODE_ENV === 'production') {
   const missing = [
-    !env.PAYSTACK_SECRET_KEY && "PAYSTACK_SECRET_KEY",
-    !env.ARKESEL_USSD_SECRET && "ARKESEL_USSD_SECRET",
-    !env.ARKESEL_API_KEY && "ARKESEL_API_KEY",
-    !env.ARKESEL_SENDER_ID && "ARKESEL_SENDER_ID",
+    !env.PAYSTACK_SECRET_KEY && 'PAYSTACK_SECRET_KEY',
+    !env.ARKESEL_USSD_SECRET && 'ARKESEL_USSD_SECRET',
+    !env.ARKESEL_API_KEY && 'ARKESEL_API_KEY',
+    !env.ARKESEL_SENDER_ID && 'ARKESEL_SENDER_ID',
   ].filter(Boolean);
   if (missing.length)
     throw new Error(
-      `Missing production security configuration: ${missing.join(", ")}`,
+      `Missing production security configuration: ${missing.join(', ')}`,
     );
-  if (env.SESSION_SECRET.toLowerCase().includes("replace"))
-    throw new Error("SESSION_SECRET must not be a placeholder in production.");
+  if (env.SESSION_SECRET.toLowerCase().includes('replace'))
+    throw new Error('SESSION_SECRET must not be a placeholder in production.');
   if (
-    !env.APP_URL.startsWith("https://") ||
-    !env.API_URL.startsWith("https://")
+    !env.APP_URL.startsWith('https://') ||
+    !env.API_URL.startsWith('https://')
   )
-    throw new Error("APP_URL and API_URL must use HTTPS in production.");
-  if (!env.PAYSTACK_SECRET_KEY?.startsWith("sk_live_"))
-    throw new Error("A Paystack live secret key is required in production.");
+    throw new Error('APP_URL and API_URL must use HTTPS in production.');
+  if (!env.PAYSTACK_SECRET_KEY?.startsWith('sk_live_'))
+    throw new Error('A Paystack live secret key is required in production.');
 }
