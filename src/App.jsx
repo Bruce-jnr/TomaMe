@@ -1365,7 +1365,7 @@ function OrganizerPage() {
             financial and vote records traceable after results are announced.
           </p>
           <Link to="/administrators/login">
-            Open administrator workspace <ArrowRight />
+            Open Organizers workspace <ArrowRight />
           </Link>
         </div>
         <ol>

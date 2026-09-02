@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate, Link, NavLink } from "react-router-dom";
+import { useEffect, useState } from 'react';
+import { useNavigate, Link, NavLink } from 'react-router-dom';
 import {
   CalendarDays,
   ClipboardList,
@@ -13,9 +13,9 @@ import {
   Users,
   WalletCards,
   X,
-} from "lucide-react";
-import logo from "../../assets/logo.png";
-import { api } from "./adminApi.js";
+} from 'lucide-react';
+import logo from '../../assets/logo.png';
+import { api } from './adminApi.js';
 
 function DashboardNavigation({ session, onNavigate }) {
   return (
@@ -35,7 +35,7 @@ function DashboardNavigation({ session, onNavigate }) {
       <NavLink to="/dashboard/payments" onClick={onNavigate}>
         <ReceiptText /> Payments
       </NavLink>
-      {session.globalRole === "SUPER_ADMIN" && (
+      {session.globalRole === 'SUPER_ADMIN' && (
         <>
           <NavLink to="/dashboard/settings" onClick={onNavigate}>
             <Settings /> Settings
@@ -61,22 +61,23 @@ export function AdminLayout({ session, title, description, action, children }) {
   useEffect(() => {
     if (!menuOpen) return undefined;
     const closeOnEscape = (event) =>
-      event.key === "Escape" && setMenuOpen(false);
-    document.addEventListener("keydown", closeOnEscape);
-    document.body.style.overflow = "hidden";
+      event.key === 'Escape' && setMenuOpen(false);
+    document.addEventListener('keydown', closeOnEscape);
+    document.body.style.overflow = 'hidden';
     return () => {
-      document.removeEventListener("keydown", closeOnEscape);
-      document.body.style.overflow = "";
+      document.removeEventListener('keydown', closeOnEscape);
+      document.body.style.overflow = '';
     };
   }, [menuOpen]);
   async function logout() {
-    await api("/api/v1/auth/logout", { method: "POST" });
+    await api('/api/v1/auth/logout', { method: 'POST' });
     navigate(
-      session.globalRole === "SUPER_ADMIN"
-        ? "/superadmin/login"
-        : "/administrators/login",
+      session.globalRole === 'SUPER_ADMIN'
+        ? '/superadmin/login'
+        : '/administrators/login',
     );
   }
+
   return (
     <div className="admin-shell management-shell">
       <aside className="admin-sidebar">
@@ -87,9 +88,9 @@ export function AdminLayout({ session, title, description, action, children }) {
         <div className="admin-profile">
           <span>
             {session.user.name
-              .split(" ")
+              .split(' ')
               .map((part) => part[0])
-              .join("")
+              .join('')
               .slice(0, 2)}
           </span>
           <div>
@@ -201,8 +202,8 @@ export function Dialog({ title, onClose, children }) {
   );
 }
 
-export function AdminLoading({ type = "table" }) {
-  if (type === "cards")
+export function AdminLoading({ type = 'table' }) {
+  if (type === 'cards')
     return (
       <div
         className="management-grid admin-skeleton-grid"
@@ -242,6 +243,7 @@ export function AdminLoading({ type = "table" }) {
     </div>
   );
 }
+
 export function AdminEmpty({ icon: Icon, title, text }) {
   return (
     <div className="admin-empty">

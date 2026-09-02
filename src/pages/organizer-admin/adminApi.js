@@ -1,13 +1,13 @@
 const API = import.meta.env.VITE_API_URL;
 
 function apiUrl(path) {
-  return API ? `${API.replace(/\/$/, "")}${path}` : path;
+  return API ? `${API.replace(/\/$/, '')}${path}` : path;
 }
 
 export async function api(path, options = {}) {
   const response = await fetch(apiUrl(path), {
-    credentials: "include",
-    headers: { "Content-Type": "application/json", ...options.headers },
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...options.headers },
     ...options,
   });
   const body = await response.json().catch(() => null);
@@ -19,8 +19,8 @@ export async function api(path, options = {}) {
       validationMessage ||
         body?.error?.message ||
         (response.status === 429
-          ? "Too many attempts. Please wait before trying again."
-          : "Request failed."),
+          ? 'Too many attempts. Please wait before trying again.'
+          : 'Request failed.'),
     );
     error.code = body?.error?.code;
     error.status = response.status;

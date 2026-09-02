@@ -72,47 +72,6 @@ export function OrganizerOverview({ session, eventManagement = false }) {
     }
   }
 
-  async function uploadEventBanner(event, file) {
-    if (!file) return;
-    if (
-      !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
-      file.size > 5 * 1024 * 1024
-    ) {
-      setState((current) => ({
-        ...current,
-        error: "Choose a JPEG, PNG, or WebP banner no larger than 5 MB.",
-      }));
-      return;
-    }
-    setState((current) => ({ ...current, pendingId: event.id, error: "" }));
-    try {
-      const uploaded = await api("/api/v1/organizer/event-images", {
-        method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      const updated = await api(`/api/v1/organizer/events/${event.id}/banner`, {
-        method: "PATCH",
-        body: JSON.stringify({ bannerUrl: uploaded.bannerUrl }),
-      });
-      setState((current) => ({
-        ...current,
-        pendingId: "",
-        events: current.events.map((item) =>
-          item.id === updated.id
-            ? { ...item, bannerUrl: updated.bannerUrl }
-            : item,
-        ),
-      }));
-    } catch (error) {
-      setState((current) => ({
-        ...current,
-        pendingId: "",
-        error: error.message,
-      }));
-    }
-  }
-
   async function archiveEvent(event) {
     if (
       !window.confirm(
@@ -196,23 +155,6 @@ export function OrganizerOverview({ session, eventManagement = false }) {
                   >
                     <Pencil />
                   </button>
-                  <label
-                    className="icon-action"
-                    title={event.bannerUrl ? "Replace banner" : "Add banner"}
-                    aria-label={
-                      event.bannerUrl ? "Replace banner" : "Add banner"
-                    }
-                  >
-                    <ImagePlus />
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      disabled={state.pendingId === event.id}
-                      onChange={(input) =>
-                        uploadEventBanner(event, input.target.files?.[0])
-                      }
-                    />
-                  </label>
                   {controllable && (
                     <button
                       className={
@@ -542,11 +484,41 @@ function EventEditForm({ event, onClose, onSaved }) {
   });
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [bannerFile, setBannerFile] = useState(null);
+  const [bannerPreview, setBannerPreview] = useState(event.bannerUrl || "");
+  useEffect(
+    () => () => {
+      if (bannerPreview.startsWith("blob:")) URL.revokeObjectURL(bannerPreview);
+    },
+    [bannerPreview],
+  );
+  function selectBanner(file) {
+    if (!file) return;
+    if (
+      !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
+      file.size > 5 * 1024 * 1024
+    ) {
+      setError("Choose a JPEG, PNG, or WebP banner no larger than 5 MB.");
+      return;
+    }
+    setError("");
+    setBannerFile(file);
+    setBannerPreview(URL.createObjectURL(file));
+  }
   async function submit(submitEvent) {
     submitEvent.preventDefault();
     setSaving(true);
     setError("");
     try {
+      let bannerUrl = event.bannerUrl;
+      if (bannerFile) {
+        const uploaded = await api("/api/v1/organizer/event-images", {
+          method: "POST",
+          headers: { "Content-Type": bannerFile.type },
+          body: bannerFile,
+        });
+        bannerUrl = uploaded.bannerUrl;
+      }
       await api(`/api/v1/organizer/events/${event.id}`, {
         method: "PATCH",
         body: JSON.stringify({
@@ -558,6 +530,7 @@ function EventEditForm({ event, onClose, onSaved }) {
           defaultVotePrice: Math.round(Number(form.defaultVotePrice) * 100),
           minimumVotes: Number(form.minimumVotes),
           maximumVotesPerTransaction: Number(form.maximumVotesPerTransaction),
+          bannerUrl,
         }),
       });
       onSaved();
@@ -569,6 +542,28 @@ function EventEditForm({ event, onClose, onSaved }) {
   return (
     <Dialog title="Edit event" onClose={onClose}>
       <form className="admin-form" onSubmit={submit}>
+        <label className="event-edit-banner-field">
+          Event banner
+          <span className="event-edit-banner-preview">
+            {bannerPreview ? (
+              <img src={bannerPreview} alt="Event banner preview" />
+            ) : (
+              <ImagePlus />
+            )}
+          </span>
+          <span className="event-edit-banner-action">
+            <ImagePlus />
+            {bannerPreview ? "Change banner" : "Add banner"}
+          </span>
+          <input
+            className="event-edit-banner-input"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(input) => selectBanner(input.target.files?.[0])}
+            disabled={saving}
+          />
+          <small>JPEG, PNG, or WebP. Maximum size 5 MB.</small>
+        </label>
         <label>
           Event name
           <input
