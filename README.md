@@ -280,7 +280,7 @@ All organizer queries are scoped by the organization membership in the signed se
 
 ## Database
 
-The Prisma schema is in `prisma/schema.prisma` and includes:
+The Prisma schema is in `backend/prisma/schema.prisma` and includes:
 
 - Users, organizations, and memberships
 - Events, categories, and candidates
@@ -368,20 +368,25 @@ Compiled outputs:
 ## Project Structure
 
 ```text
-prisma/                  Prisma schema, migrations, and seed
-server/
-  auth/                  Session creation and verification
-  config/                Environment and logger configuration
-  db/                    Prisma client
-  domain/                Voting rules and calculations
-  middleware/            Authentication and error handling
-  payments/              Payment-provider contracts
-  routes/                Public, auth, and organizer routes
-  services/              Vote-order and vote-crediting services
-src/
-  assets/                Local UI assets
-  pages/                 Organizer and event-management pages
-  App.jsx                Public pages and application routing
+backend/
+  prisma/                Prisma schema, migrations, and seed
+  server/
+    auth/                Session creation and verification
+    config/              Environment and logger configuration
+    db/                  Prisma client
+    domain/              Voting rules and calculations
+    middleware/          Authentication and error handling
+    payments/            Payment-provider contracts
+    routes/              Public, auth, and organizer routes
+    services/            Vote-order and vote-crediting services
+  uploads/               Uploaded event and candidate images
+frontend/
+  src/
+    assets/              Local UI assets
+    pages/               Organizer and event-management pages
+    App.jsx              Public pages and application routing
+  index.html             Vite HTML entry point
+  vite.config.js         Frontend development and build configuration
 ```
 
 ## Not Yet Complete

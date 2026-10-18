@@ -31,6 +31,7 @@ const envSchema = z.object({
     .enum(['development', 'test', 'production'])
     .default('development'),
   API_PORT: z.coerce.number().int().min(1).max(65535).default(4000),
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(0),
   DATABASE_URL: z.string().url(),
   APP_URL: z.string().url().default('http://localhost:5173'),
   API_URL: z.string().url().default('http://localhost:4000'),

@@ -4,22 +4,22 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:api": "tsx watch server/index.ts",
+    "dev": "vite frontend --config frontend/vite.config.js",
+    "dev:api": "tsx watch backend/server/index.ts",
     "dev:all": "concurrently --kill-others-on-fail --names web,api --prefix-colors cyan,yellow \"npm:dev\" \"npm:dev:api\"",
     "start:api": "node dist-api/server/index.js",
-    "build": "vite build",
-    "build:api": "tsc -p tsconfig.server.json",
+    "build": "vite build frontend --config frontend/vite.config.js",
+    "build:api": "tsc -p backend/tsconfig.server.json",
     "lint": "eslint .",
-    "preview": "vite preview",
+    "preview": "vite preview frontend --config frontend/vite.config.js",
     "test": "vitest run",
-    "test:security": "vitest run server/security server/payments/paystack.provider.test.ts",
+    "test:security": "vitest run backend/server/security backend/server/payments/paystack.provider.test.ts",
     "test:watch": "vitest",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy",
-    "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:generate": "prisma generate --schema backend/prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema backend/prisma/schema.prisma",
+    "db:deploy": "prisma migrate deploy --schema backend/prisma/schema.prisma",
+    "db:seed": "tsx backend/prisma/seed.ts",
+    "db:studio": "prisma studio --schema backend/prisma/schema.prisma"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
@@ -61,5 +61,8 @@
     "typescript": "^7.0.2",
     "vite": "^8.2.0",
     "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "deepmerge-ts": "^8.0.0"
   }
 }

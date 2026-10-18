@@ -621,20 +621,29 @@ financialRouter.post("/withdrawals/:id/process", async (req, res, next) => {
         "INVALID_PASSWORD",
         "Current password is incorrect.",
       );
-    const withdrawal = await prisma.withdrawal.findFirst({
-      where: {
-        id,
-        wallet: { userId: auth.userId },
-        status: WithdrawalStatus.APPROVED,
-      },
-      include: { payoutRecipient: true },
+    const withdrawal = await prisma.$transaction(async (tx) => {
+      const claimed = await tx.withdrawal.updateMany({
+        where: {
+          id,
+          wallet: { userId: auth.userId },
+          status: WithdrawalStatus.APPROVED,
+        },
+        data: {
+          status: WithdrawalStatus.PROCESSING,
+          processedAt: new Date(),
+        },
+      });
+      if (claimed.count !== 1)
+        throw new AppError(
+          409,
+          "WITHDRAWAL_NOT_APPROVED",
+          "Approve the withdrawal before processing it.",
+        );
+      return tx.withdrawal.findUniqueOrThrow({
+        where: { id },
+        include: { payoutRecipient: true },
+      });
     });
-    if (!withdrawal)
-      throw new AppError(
-        409,
-        "WITHDRAWAL_NOT_APPROVED",
-        "Approve the withdrawal before processing it.",
-      );
     const transfer = await paystackProvider.initiateTransfer({
       amount: withdrawal.netAmount,
       recipientCode: withdrawal.payoutRecipient.recipientCode,
@@ -642,12 +651,14 @@ financialRouter.post("/withdrawals/:id/process", async (req, res, next) => {
       reason: "Toabapa wallet withdrawal",
       currency: withdrawal.currency,
     });
-    await prisma.withdrawal.update({
-      where: { id },
-      data: {
+    await prisma.withdrawal.updateMany({
+      where: {
+        id,
         status: WithdrawalStatus.PROCESSING,
+        paystackTransferCode: null,
+      },
+      data: {
         paystackTransferCode: transfer.transferCode,
-        processedAt: new Date(),
       },
     });
     await prisma.auditLog.create({

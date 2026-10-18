@@ -58,7 +58,7 @@ app.use(
 app.use(express.json({ limit: '100kb' }));
 app.use(cookieParser());
 
-app.set('trust proxy', 1);
+if (env.TRUST_PROXY_HOPS > 0) app.set('trust proxy', env.TRUST_PROXY_HOPS);
 app.use(
   '/api',
   apiRateLimit({ windowMs: 60_000, limit: 120 }),
@@ -111,7 +111,7 @@ app.use('/api/v1/organizer', organizerRouter);
 app.use('/api/v1/superadmin/financial', apiRateLimit({ windowMs: 60_000, limit: 30 }), financialRouter);
 app.use(
   '/api/v1/public/candidate-images',
-  express.static(path.resolve(process.cwd(), 'uploads', 'candidates'), {
+  express.static(path.resolve(process.cwd(), 'backend', 'uploads', 'candidates'), {
     fallthrough: false,
     maxAge: '1d',
     immutable: false,
@@ -119,7 +119,7 @@ app.use(
 );
 app.use(
   '/api/v1/public/event-images',
-  express.static(path.resolve(process.cwd(), 'uploads', 'events'), {
+  express.static(path.resolve(process.cwd(), 'backend', 'uploads', 'events'), {
     fallthrough: false,
     maxAge: '1d',
     immutable: false,

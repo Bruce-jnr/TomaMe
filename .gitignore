@@ -25,5 +25,5 @@ dist-api
 *.sw?
 
 .env
-uploads/
+backend/uploads/
 SECURITY.md

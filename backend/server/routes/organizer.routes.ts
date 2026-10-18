@@ -305,7 +305,7 @@ organizerRouter.post('/event-images', requireRoles(...managerRoles), express.raw
     if (!imageType || !Buffer.isBuffer(data) || data.length === 0 || !imageType.signature(data)) {
       throw new AppError(400, 'INVALID_EVENT_IMAGE', 'Upload a valid JPEG, PNG, or WebP image.');
     }
-    const directory = path.resolve(process.cwd(), 'uploads', 'events');
+    const directory = path.resolve(process.cwd(), 'backend', 'uploads', 'events');
     await mkdir(directory, { recursive: true });
     const filename = `${randomUUID()}.${imageType.extension}`;
     await writeFile(path.join(directory, filename), data, { flag: 'wx' });
@@ -337,7 +337,12 @@ organizerRouter.post('/candidate-images', requireRoles(...managerRoles), express
     if (!imageType || !Buffer.isBuffer(data) || data.length === 0 || !imageType.signature(data)) {
       throw new AppError(400, 'INVALID_CANDIDATE_IMAGE', 'Upload a valid JPEG, PNG, or WebP image.');
     }
-    const directory = path.resolve(process.cwd(), 'uploads', 'candidates');
+    const directory = path.resolve(
+      process.cwd(),
+      'backend',
+      'uploads',
+      'candidates',
+    );
     await mkdir(directory, { recursive: true });
     const filename = `${randomUUID()}.${imageType.extension}`;
     await writeFile(path.join(directory, filename), data, { flag: 'wx' });
