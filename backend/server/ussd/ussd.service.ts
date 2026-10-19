@@ -1,7 +1,6 @@
 import {
   PaymentProviderName,
   PaymentStatus,
-  RecordStatus,
 } from '@prisma/client';
 import { prisma } from '../db/prisma.js';
 import { AppError } from '../errors/app-error.js';
@@ -10,6 +9,10 @@ import { paystackProvider } from '../payments/paystack.provider.js';
 import { createVoteOrder } from '../services/vote-order.service.js';
 import { creditVerifiedPayment } from '../services/vote-credit.service.js';
 import type { ArkeselRequest } from './arkesel.js';
+import {
+  hasAmbiguousLiveCode,
+  liveUssdCandidateFilter,
+} from './candidate-resolution.js';
 import {
   deleteUssdSession,
   getUssdSession,
@@ -71,23 +74,25 @@ export async function handleUssd(
     return { message: 'Enter nominee code:', continueSession: true };
   }
   if (session.step === 'ENTER_CODE') {
-    const candidate = await prisma.candidate.findFirst({
-      where: {
-        candidateCode: input.toUpperCase(),
-        status: RecordStatus.ACTIVE,
-      },
+    const candidates = await prisma.candidate.findMany({
+      where: liveUssdCandidateFilter(input),
       include: { event: true, category: true },
-      orderBy: { createdAt: 'desc' },
+      take: 2,
     });
+    if (hasAmbiguousLiveCode(candidates)) {
+      await deleteUssdSession(request.sessionID);
+      return {
+        message:
+          'This nominee code is used by more than one live event. Contact the event organizer for the correct code.',
+        continueSession: false,
+      };
+    }
+    const candidate = candidates[0];
     if (!candidate)
       return {
-        message: 'Nominee code not found. Enter nominee code:',
+        message:
+          'Nominee code is not valid for a live event. Enter nominee code:',
         continueSession: true,
-      };
-    if (!candidate.event.ussdVotingEnabled)
-      return {
-        message: 'USSD voting is unavailable for this event.',
-        continueSession: false,
       };
     await saveUssdSession(request.sessionID, {
       ...session,
